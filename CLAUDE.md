@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this project is
 
-**Comedor** — a system to digitize the planning, request, physical payment, and consumption validation of a company cafeteria service. The full functional specification lives in [software-comedor.md](software-comedor.md) (Spanish, ~1900 lines). **Read the relevant section of that spec before implementing any domain feature** — the business rules there are the source of truth and are not yet reflected in code.
+**Comedor** — a system to digitize the planning, request, physical payment, and consumption validation of a company cafeteria service. The full functional specification lives in [software-comedor.md](docs/software-comedor.md) (Spanish, ~1900 lines). **Read the relevant section of that spec before implementing any domain feature** — the business rules there are the source of truth and are not yet reflected in code.
 
 Current state: the repository is a **Laravel 13 + Vue 3 scaffold**. None of the domain (personas, periodos, fichas, gafetes, consumo) is implemented yet — `app/` contains only the default `User` model and base `Controller`, `routes/api.php` is empty, and `database/migrations/` holds only the framework's users/cache/jobs tables.
 

@@ -1,6 +1,6 @@
 # Análisis y diseño técnico — Sistema de comedor
 
-> Documento derivado de [software-comedor.md](../software-comedor.md) (spec funcional, fuente de
+> Documento derivado de [software-comedor.md](software-comedor.md) (spec funcional, fuente de
 > verdad de las **reglas de negocio**). Este documento traduce esa spec a los artefactos de
 > ingeniería que exige su §26: modelo de dominio, modelo de datos, catálogo de estados y
 > transiciones, catálogo de permisos, reglas de negocio detalladas, casos de uso, diseño de API,

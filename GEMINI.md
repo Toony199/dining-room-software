@@ -10,7 +10,7 @@ Este archivo sirve como contexto de instrucción y referencia rápida para el de
 
 **Comedor** es una aplicación web construida como una **Single Page Application (SPA)**. Utiliza **Laravel** en el backend como API y despachador del frontend, y **Vue.js** en el frontend, estilizado con **TailwindCSS**.
 
-El objetivo del sistema es digitalizar la planeación, solicitud, pago físico y validación del derecho de consumo del servicio de comedor de una empresa. **La especificación funcional completa está en [`software-comedor.md`](software-comedor.md)** y es la fuente de verdad del negocio: consúltala antes de implementar cualquier funcionalidad de dominio.
+El objetivo del sistema es digitalizar la planeación, solicitud, pago físico y validación del derecho de consumo del servicio de comedor de una empresa. **La especificación funcional completa está en [`software-comedor.md`](docs/software-comedor.md)** y es la fuente de verdad del negocio: consúltala antes de implementar cualquier funcionalidad de dominio.
 
 **Estado actual:** el repositorio es todavía un andamiaje (scaffold) de Laravel + Vue. El dominio (personas, periodos, fichas, gafetes, consumo) **aún no está implementado**: `app/` sólo contiene el modelo `User` y el `Controller` base, `routes/api.php` está vacío y `database/migrations/` sólo tiene las tablas de framework (users, cache, jobs).
 
