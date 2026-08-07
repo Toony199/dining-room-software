@@ -4,6 +4,9 @@ export const iframeHeight = "800px"
 </script>
 
 <script setup lang="ts">
+
+import { useRoute } from 'vue-router';
+
 import AppSidebar from "@/components/AppSidebar.vue"
 import {
     Breadcrumb,
@@ -19,6 +22,10 @@ import {
     SidebarProvider,
     SidebarTrigger,
 } from "@/components/ui/sidebar"
+
+// El título de cada vista vive en meta.title de su ruta (ver router.js).
+const route = useRoute();
+
 </script>
 
 <template>
@@ -32,13 +39,13 @@ import {
                     <Breadcrumb>
                         <BreadcrumbList>
                             <BreadcrumbItem class="hidden md:block">
-                                <BreadcrumbLink href="/">
-                                    Home
+                                <BreadcrumbLink as-child>
+                                    <router-link to="/">Home</router-link>
                                 </BreadcrumbLink>
                             </BreadcrumbItem>
-                            <BreadcrumbSeparator class="hidden md:block" />
+                            <BreadcrumbSeparator v-if="route.path !== '/' " class="hidden md:block" />
                             <BreadcrumbItem>
-                                <BreadcrumbPage>Data Fetching</BreadcrumbPage>
+                                <BreadcrumbPage>{{ route.meta.title }}</BreadcrumbPage>
                             </BreadcrumbItem>
                         </BreadcrumbList>
                     </Breadcrumb>
@@ -49,4 +56,5 @@ import {
             </div>
         </SidebarInset>
     </SidebarProvider>
+
 </template>

@@ -36,15 +36,15 @@ const { isMobile } = useSidebar()
 </script>
 
 <template>
-  <SidebarGroup class="group-data-[collapsible=icon]:hidden">
+  <SidebarGroup v-if="projects.length" class="group-data-[collapsible=icon]:hidden">
     <SidebarGroupLabel>Projects</SidebarGroupLabel>
     <SidebarMenu>
       <SidebarMenuItem v-for="item in projects" :key="item.name">
         <SidebarMenuButton as-child>
-          <a :href="item.url">
+          <router-link :to="item.url">
             <component :is="item.icon" />
             <span>{{ item.name }}</span>
-          </a>
+          </router-link>
         </SidebarMenuButton>
         <DropdownMenu>
           <DropdownMenuTrigger as-child>
@@ -75,10 +75,10 @@ const { isMobile } = useSidebar()
         </DropdownMenu>
       </SidebarMenuItem>
       <SidebarMenuItem>
-        <SidebarMenuButton>
+        <!-- <SidebarMenuButton>
           <MoreHorizontal />
           <span>More</span>
-        </SidebarMenuButton>
+        </SidebarMenuButton> -->
       </SidebarMenuItem>
     </SidebarMenu>
   </SidebarGroup>

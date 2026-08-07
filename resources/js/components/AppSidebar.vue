@@ -3,7 +3,9 @@ import type { SidebarProps } from '@/components/ui/sidebar'
 
 const appName = import.meta.env.VITE_APP_NAME;
 
+
 import {
+  Landmark,
   BookOpen,
   Bot,
   Command,
@@ -14,6 +16,7 @@ import {
   Send,
   Settings2,
   SquareTerminal,
+  Home,
 } from "@lucide/vue"
 
 import NavMain from '@/components/NavMain.vue'
@@ -36,127 +39,46 @@ const props = withDefaults(defineProps<SidebarProps>(), {
 
 const data = {
   user: {
-    name: "shadcn",
-    email: "m@example.com",
+    name: "Desarrollador",
+    email: "correo@correo.com",
     avatar: "/avatars/shadcn.jpg",
   },
   navMain: [
     {
-      title: "Playground",
-      url: "#",
-      icon: SquareTerminal,
-      isActive: true,
-      items: [
-        {
-          title: "History",
-          url: "#",
-        },
-        {
-          title: "Starred",
-          url: "#",
-        },
-        {
-          title: "Settings",
-          url: "#",
-        },
-      ],
+      title: 'Home',
+      url: '/',
+      icon: Home,
+      isActive: false,
+      // items: [
+      //   {
+      //     title: '',
+      //     url: '',
+      //   }
+      // ]
     },
     {
-      title: "Models",
-      url: "#",
-      icon: Bot,
-      items: [
-        {
-          title: "Genesis",
-          url: "#",
-        },
-        {
-          title: "Explorer",
-          url: "#",
-        },
-        {
-          title: "Quantum",
-          url: "#",
-        },
-      ],
-    },
-    {
-      title: "Documentation",
-      url: "#",
-      icon: BookOpen,
-      items: [
-        {
-          title: "Introduction",
-          url: "#",
-        },
-        {
-          title: "Get Started",
-          url: "#",
-        },
-        {
-          title: "Tutorials",
-          url: "#",
-        },
-        {
-          title: "Changelog",
-          url: "#",
-        },
-      ],
-    },
-    {
-      title: "Settings",
-      url: "#",
-      icon: Settings2,
-      items: [
-        {
-          title: "General",
-          url: "#",
-        },
-        {
-          title: "Team",
-          url: "#",
-        },
-        {
-          title: "Billing",
-          url: "#",
-        },
-        {
-          title: "Limits",
-          url: "#",
-        },
-      ],
+      title: 'Departamentos',
+      url: '/departamentos',
+      icon: Landmark,
+      isActive: false,
+      // items: [
+      //   {
+      //     title: '',
+      //     url: '',
+      //   }
+      // ]
     },
   ],
   navSecondary: [
     {
       title: "Support",
       url: "#",
-      icon: LifeBuoy,
-    },
-    {
-      title: "Feedback",
-      url: "#",
-      icon: Send,
+      icon: Landmark,
     },
   ],
-  projects: [
-    {
-      name: "Design Engineering",
-      url: "#",
-      icon: Frame,
-    },
-    {
-      name: "Sales & Marketing",
-      url: "#",
-      icon: PieChart,
-    },
-    {
-      name: "Travel",
-      url: "#",
-      icon: Map,
-    },
-  ],
+  projects: []
 }
+
 </script>
 
 <template>
@@ -165,16 +87,16 @@ const data = {
       <SidebarMenu>
         <SidebarMenuItem>
           <SidebarMenuButton size="lg" as-child>
-            <a href="#">
+            <router-link to="/">
               <div class="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
                 <Command class="size-4" />
               </div>
               <div class="grid flex-1 text-left text-sm leading-tight">
                 <!-- USAR EL NOMBRE DE LA APLICACIÓN ESTRAIDA DE EL ARCHIVO .ENV -->
                 <span class="truncate font-medium">{{ appName }}</span>
-                <span class="truncate text-xs">Enterprise</span>
+                <span class="truncate text-xs">AROD S.A DE C.V</span>
               </div>
-            </a>
+            </router-link>
           </SidebarMenuButton>
         </SidebarMenuItem>
       </SidebarMenu>

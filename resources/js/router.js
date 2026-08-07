@@ -8,12 +8,22 @@ const routes = [
     {
         path: '/',
         name: 'home',
-        component: HomeIndex
+        component: HomeIndex,
+        meta: {
+            title: '',
+            requiresAuth: true,
+            permission: [],
+        }
     },
     {
         path: '/departamentos',
         name: 'DepartamentosIndex',
-        component: DepartamentosIndex
+        component: DepartamentosIndex,
+        meta: {
+            title: 'Departamentos',
+            requiresAuth: true,
+            permission: [],
+        }
     },
 ]
 

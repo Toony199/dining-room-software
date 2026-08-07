@@ -49,7 +49,7 @@ onMounted(fetchDepartamentos);
 </script>
 
 <template>
-    <div class="border border-red-500 p-4">
+    <div class="p-4">
         <h1 class="mb-6 text-2xl font-semibold">Departamentos</h1>
 
         <!-- Formulario de alta / edición -->
