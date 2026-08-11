@@ -1,6 +1,6 @@
 <script lang="ts">
-export const description = "An inset sidebar with secondary navigation."
-export const iframeHeight = "800px"
+// export const description = "An inset sidebar with secondary navigation."
+// export const iframeHeight = "800px"
 </script>
 
 <script setup lang="ts">

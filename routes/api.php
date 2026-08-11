@@ -8,6 +8,7 @@ Route::get('/user', function (Request $request) {
     return $request->user();
 })->middleware('auth:sanctum');
 
+// Endpoint para el CRUD de departamentos
 Route::get('/departamentos', [DepartamentosController::class, 'index']);
 Route::post('/departamentos', [DepartamentosController::class, 'store']);
 Route::get('/departamentos/{departamento}', [DepartamentosController::class, 'show']);
