@@ -1,11 +1,11 @@
 <script setup>
-import { reactive, ref, onMounted } from 'vue'
+import { computed, reactive, ref, onMounted, watch } from 'vue'
+import { useDebounceFn } from '@vueuse/core'
 
 import { useDepartamentosApi } from '@/composables/useDepartamentosApi.js'
 
 import {
     Card,
-    CardAction,
     CardContent,
     CardDescription,
     CardFooter,
@@ -18,13 +18,12 @@ import {
   TableBody,
   TableCaption,
   TableCell,
-  TableFooter,
   TableHead,
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
 
-import { SquarePen, Plus, SearchX } from '@lucide/vue'
+import { SquarePen, Plus, SearchX, Search } from '@lucide/vue'
 
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
@@ -32,6 +31,21 @@ import { Badge } from '@/components/ui/badge'
 import { Spinner } from '@/components/ui/spinner'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select'
+import {
+    Pagination,
+    PaginationContent,
+    PaginationEllipsis,
+    PaginationItem,
+    PaginationNext,
+    PaginationPrevious,
+} from '@/components/ui/pagination'
 import {
     AlertDialog,
     AlertDialogAction,
@@ -56,7 +70,10 @@ const {
     loading,
     departamentos,
     errores,
+    paginacion,
+    filtros,
     fetchDepartamentos,
+    irAPrimeraPagina,
     createDepartamento,
     updateDepartamento,
     desactivarDepartamento,
@@ -79,6 +96,44 @@ const deptoPendiente = ref(null);
 // Id de la fila cuyo estado se está cambiando (para mostrar el spinner
 // solo en ese registro y no en todos, ya que `loading` es global).
 const cambiandoId = ref(null);
+
+// --- Filtros -------------------------------------------------------------
+
+// Se espera a que el usuario deje de teclear para no lanzar una petición por letra.
+const buscar = useDebounceFn(irAPrimeraPagina, 350);
+
+// El Select de reka-ui trabaja con strings; '' = sin filtrar.
+const filtroActivo = computed({
+    get: () => filtros.activo === '' ? 'todos' : filtros.activo,
+    set: (valor) => {
+        filtros.activo = valor === 'todos' ? '' : valor;
+        irAPrimeraPagina();
+    },
+});
+
+// Sincroniza el control de paginación con el paginador del backend.
+const paginaActual = computed({
+    get: () => paginacion.current_page,
+    set: (pagina) => fetchDepartamentos(pagina),
+});
+
+const hayFiltros = computed(() => filtros.q !== '' || filtros.activo !== '');
+
+const limpiarFiltros = () => {
+    filtros.q = '';
+    filtros.activo = '';
+    irAPrimeraPagina();
+};
+
+// Si al desactivar/filtrar la página actual queda vacía pero aún hay registros,
+// retrocede a la última página con contenido (p. ej. borrar el único de la pág. 3).
+watch(departamentos, (lista) => {
+    if (!lista.length && paginacion.current_page > 1) {
+        fetchDepartamentos(paginacion.last_page);
+    }
+});
+
+// --- Acciones ------------------------------------------------------------
 
 // Se dispara cuando el usuario mueve el Switch de una fila.
 // nuevoValor === true  → activar directo.
@@ -147,13 +202,17 @@ const guardar = async () => {
 
     // Si la API devolvió errores de validación (422), `ok` es false y
     // dejamos el modal abierto mostrando los mensajes.
+    //
+    // No se llama a resetForm() aquí: limpiar editandoId mientras el diálogo se está
+    // cerrando hace que el título parpadee a "Agregar departamento". Ambos puntos de
+    // entrada (abrirCrear / editar) inicializan el formulario, así que basta con cerrar.
     if (ok) {
-        resetForm();
         modaldepartamento.value = false;
+        limpiarErrores();
     }
 };
 
-onMounted(fetchDepartamentos);
+onMounted(() => fetchDepartamentos(1));
 </script>
 
 <template>
@@ -167,24 +226,51 @@ onMounted(fetchDepartamentos);
 
         <CardHeader>
             <div class="flex flex-col sm:flex-row justify-between gap-2">
-                <div class="">
+                <div>
                     <CardTitle>Tabla de departamentos</CardTitle>
                     <CardDescription>
                         Aquí puedes ver todos los departamentos existentes y sus estados.
                     </CardDescription>
                 </div>
-                
-                <div class="w-full flex justify-end">
+
+                <div class="flex justify-end">
                     <Button @click="abrirCrear">
                         <Plus/>
                         Agregar
                     </Button>
                 </div>
             </div>
-        </CardHeader>
-        
-        <CardContent>
 
+            <div class="flex flex-col sm:flex-row gap-2 pt-4">
+                <div class="relative flex-1">
+                    <Search class="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                        v-model="filtros.q"
+                        placeholder="Buscar por nombre…"
+                        class="pl-8"
+                        autocomplete="off"
+                        @update:model-value="buscar"
+                    />
+                </div>
+
+                <Select v-model="filtroActivo">
+                    <SelectTrigger class="w-full sm:w-44">
+                        <SelectValue placeholder="Estado" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="todos">Todos</SelectItem>
+                        <SelectItem value="1">Activos</SelectItem>
+                        <SelectItem value="0">Inactivos</SelectItem>
+                    </SelectContent>
+                </Select>
+
+                <Button v-if="hayFiltros" variant="ghost" @click="limpiarFiltros">
+                    Limpiar
+                </Button>
+            </div>
+        </CardHeader>
+
+        <CardContent>
 
             <Table>
                 <TableCaption v-if="departamentos.length">Lista de los departamentos existentes.</TableCaption>
@@ -225,7 +311,7 @@ onMounted(fetchDepartamentos);
                             {{ new Date(depto.updated_at).toLocaleString() }}
                         </TableCell>
                         <TableCell class="flex justify-center gap-4">
-                            <SquarePen  
+                            <SquarePen
                                 @click="editar(depto)"
                                 class="w-5 text-sky-700 cursor-pointer"
                                 ></SquarePen>
@@ -239,12 +325,49 @@ onMounted(fetchDepartamentos);
                     <TableRow v-if="!departamentos.length">
                         <TableCell colspan="6" class="text-center text-gray-400 p-4">
                             <SearchX class="mx-auto h-10 w-10 text-gray-400" />
-                            <p class="mt-2">No se encontraron departamentos registrados.</p>
+                            <p class="mt-2">
+                                {{ hayFiltros
+                                    ? 'Ningún departamento coincide con los filtros.'
+                                    : 'No se encontraron departamentos registrados.' }}
+                            </p>
                         </TableCell>
                     </TableRow>
                 </TableBody>
             </Table>
         </CardContent>
+
+        <CardFooter v-if="paginacion.total" class="flex flex-col sm:flex-row items-center justify-between gap-4">
+            <p class="text-sm text-muted-foreground">
+                Mostrando {{ departamentos.length }} de {{ paginacion.total }}
+                {{ paginacion.total === 1 ? 'departamento' : 'departamentos' }}
+            </p>
+
+            <Pagination
+                v-if="paginacion.last_page > 1"
+                v-model:page="paginaActual"
+                :total="paginacion.total"
+                :items-per-page="paginacion.per_page"
+                :sibling-count="1"
+                show-edges
+                class="mx-0 w-auto"
+            >
+                <PaginationContent v-slot="{ items }">
+                    <PaginationPrevious />
+                    <template v-for="(item, index) in items">
+                        <PaginationItem
+                            v-if="item.type === 'page'"
+                            :key="index"
+                            :value="item.value"
+                            :is-active="item.value === paginacion.current_page"
+                        >
+                            {{ item.value }}
+                        </PaginationItem>
+                        <PaginationEllipsis v-else :key="`e-${index}`" :index="index" />
+                    </template>
+                    <PaginationNext />
+                </PaginationContent>
+            </Pagination>
+        </CardFooter>
     </Card>
 
     <AlertDialog v-model:open="confirmarDesactivacion">
@@ -309,5 +432,5 @@ onMounted(fetchDepartamentos);
             </form>
         </DialogContent>
     </Dialog>
-    
+
 </template>

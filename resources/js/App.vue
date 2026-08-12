@@ -22,6 +22,7 @@ import {
     SidebarProvider,
     SidebarTrigger,
 } from "@/components/ui/sidebar"
+import { Toaster } from "@/components/ui/sonner"
 
 // El título de cada vista vive en meta.title de su ruta (ver router.js).
 const route = useRoute();
@@ -55,6 +56,9 @@ const route = useRoute();
                 <router-view />
             </div>
         </SidebarInset>
+
+        <!-- Contenedor único de toasts para toda la app; se invoca con toast() desde cualquier vista. -->
+        <Toaster rich-colors close-button position="top-right" />
     </SidebarProvider>
 
 </template>

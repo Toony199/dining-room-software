@@ -3,19 +3,38 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\DepartamentoRequest;
+use App\Http\Resources\DepartamentoResource;
 use App\Models\Departamento;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 class DepartamentosController extends Controller
 {
     /**
-     * Lista todos los departamentos (activos e inactivos, para administración).
+     * Número de registros por página cuando el cliente no especifica `per_page`.
      */
-    public function index(): JsonResponse
-    {
-        $departamentos = Departamento::orderBy('nombre')->get();
+    private const PER_PAGE = 10;
 
-        return response()->json($departamentos);
+    /**
+     * Lista departamentos paginados.
+     *
+     * Query params:
+     *  - `activo=1|0`  filtra por estado. Los formularios que ofrecen un departamento a elegir
+     *                  deben pasar `activo=1` para no proponer catálogos dados de baja (§3.4).
+     *  - `q=texto`     búsqueda parcial por nombre.
+     *  - `per_page=n`  tamaño de página (1..100).
+     */
+    public function index(Request $request): AnonymousResourceCollection
+    {
+        $departamentos = Departamento::query()
+            ->when($request->filled('activo'), fn ($query) => $query->where('activo', $request->boolean('activo')))
+            ->when($request->filled('q'), fn ($query) => $query->where('nombre', 'like', '%'.$request->string('q').'%'))
+            ->orderBy('nombre')
+            ->paginate($this->perPage($request))
+            ->withQueryString();
+
+        return DepartamentoResource::collection($departamentos);
     }
 
     /**
@@ -25,45 +44,55 @@ class DepartamentosController extends Controller
     {
         $departamento = Departamento::create($request->validated());
 
-        return response()->json($departamento, 201);
+        return (new DepartamentoResource($departamento))
+            ->response()
+            ->setStatusCode(201);
     }
 
     /**
      * Muestra un departamento.
      */
-    public function show(Departamento $departamento): JsonResponse
+    public function show(Departamento $departamento): DepartamentoResource
     {
-        return response()->json($departamento);
+        return new DepartamentoResource($departamento);
     }
 
     /**
      * Edita un departamento (§3.4).
      */
-    public function update(DepartamentoRequest $request, Departamento $departamento): JsonResponse
+    public function update(DepartamentoRequest $request, Departamento $departamento): DepartamentoResource
     {
         $departamento->update($request->validated());
 
-        return response()->json($departamento);
+        return new DepartamentoResource($departamento);
     }
 
     /**
      * Baja lógica del departamento (§3.4, RN-07). No se elimina físicamente para conservar el
      * historial de colaboradores y operaciones asociadas.
      */
-    public function desactivar(Departamento $departamento): JsonResponse
+    public function desactivar(Departamento $departamento): DepartamentoResource
     {
         $departamento->update(['activo' => false]);
 
-        return response()->json($departamento);
+        return new DepartamentoResource($departamento);
     }
 
     /**
      * Reactiva un departamento previamente desactivado.
      */
-    public function activar(Departamento $departamento): JsonResponse
+    public function activar(Departamento $departamento): DepartamentoResource
     {
         $departamento->update(['activo' => true]);
 
-        return response()->json($departamento);
+        return new DepartamentoResource($departamento);
+    }
+
+    /**
+     * Acota `per_page` para que un cliente no pueda pedir la tabla completa en una sola llamada.
+     */
+    private function perPage(Request $request): int
+    {
+        return max(1, min($request->integer('per_page', self::PER_PAGE), 100));
     }
 }

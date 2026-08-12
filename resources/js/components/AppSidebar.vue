@@ -61,12 +61,6 @@ const data = {
       url: '/departamentos',
       icon: Landmark,
       isActive: false,
-      // items: [
-      //   {
-      //     title: '',
-      //     url: '',
-      //   }
-      // ]
     },
   ],
   navSecondary: [
