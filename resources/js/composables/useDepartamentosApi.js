@@ -31,9 +31,17 @@ export function useDepartamentosApi() {
     // Cualquier otro fallo (500, red caída, 404) no tiene campo donde mostrarse:
     // va a un toast para que el usuario no se quede esperando sin explicación.
     const manejarError = (error, mensaje = 'No se pudo completar la operación.') => {
-        if (error.response?.status === 422) {
+        const status = error.response?.status;
+
+        if (status === 422) {
             errores.value = error.response.data.errors ?? {};
 
+            return;
+        }
+
+        // 401 y 403 los explica el interceptor global (ver interceptores.js). Avisar aquí
+        // también apilaría dos toasts sobre el mismo suceso.
+        if (status === 401 || status === 403) {
             return;
         }
 

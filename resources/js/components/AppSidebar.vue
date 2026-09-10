@@ -1,5 +1,9 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import type { SidebarProps } from '@/components/ui/sidebar'
+
+import { useAuthStore } from '@/stores/auth.js'
+import { modulos } from '@/modulos.js'
 
 const appName = import.meta.env.VITE_APP_NAME;
 
@@ -38,11 +42,6 @@ const props = withDefaults(defineProps<SidebarProps>(), {
 })
 
 const data = {
-  user: {
-    name: "Desarrollador",
-    email: "correo@correo.com",
-    avatar: "/avatars/shadcn.jpg",
-  },
   navMain: [
     {
       title: 'Home',
@@ -56,12 +55,8 @@ const data = {
       //   }
       // ]
     },
-    {
-      title: 'Departamentos',
-      url: '/departamentos',
-      icon: Landmark,
-      isActive: false,
-    },
+    // La lista de módulos es compartida con la página de inicio (ver modulos.js).
+    ...modulos.map((modulo) => ({ ...modulo, isActive: false })),
   ],
   navSecondary: [
     {
@@ -72,6 +67,18 @@ const data = {
   ],
   projects: []
 }
+
+const auth = useAuthStore()
+
+/**
+ * Solo se listan los módulos que el rol puede abrir.
+ *
+ * Es comodidad, no seguridad: ofrecer un módulo que responderá 403 solo hace perder el tiempo.
+ * Lo que protege de verdad son los permisos que el backend comprueba en cada operación (§5.6).
+ */
+const navMain = computed(() => data.navMain.filter(
+  (item) => !item.permiso || auth.tienePermiso(item.permiso)
+))
 
 </script>
 
@@ -96,12 +103,12 @@ const data = {
       </SidebarMenu>
     </SidebarHeader>
     <SidebarContent>
-      <NavMain :items="data.navMain" />
+      <NavMain :items="navMain" />
       <NavProjects :projects="data.projects" />
       <NavSecondary :items="data.navSecondary" class="mt-auto" />
     </SidebarContent>
     <SidebarFooter>
-      <NavUser :user="data.user" />
+      <NavUser />
     </SidebarFooter>
   </Sidebar>
 </template>

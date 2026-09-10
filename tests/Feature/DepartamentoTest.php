@@ -10,6 +10,15 @@ class DepartamentoTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // Las rutas exigen sesión y permiso (§5.6). Se conceden solo los del módulo
+        // que esta clase ejercita.
+        $this->actuandoComo('departamentos.ver', 'departamentos.crear', 'departamentos.editar', 'departamentos.desactivar');
+    }
+
     public function test_lista_departamentos_ordenados_por_nombre(): void
     {
         Departamento::factory()->create(['nombre' => 'Producción']);
@@ -17,8 +26,9 @@ class DepartamentoTest extends TestCase
 
         $response = $this->getJson('/api/departamentos');
 
+        // +1 por el departamento que crea la sesión (ver TestCase::actuandoComo).
         $response->assertOk()
-            ->assertJsonCount(2, 'data')
+            ->assertJsonCount(2 + self::REGISTROS_DE_SESION, 'data')
             ->assertJsonPath('data.0.nombre', 'Almacén'); // orden alfabético
     }
 
@@ -44,8 +54,8 @@ class DepartamentoTest extends TestCase
 
         $response->assertOk()
             ->assertJsonCount(5, 'data')
-            ->assertJsonPath('meta.total', 20)
-            ->assertJsonPath('meta.last_page', 4)
+            ->assertJsonPath('meta.total', 20 + self::REGISTROS_DE_SESION)
+            ->assertJsonPath('meta.last_page', 5)
             ->assertJsonPath('meta.per_page', 5);
     }
 
@@ -65,9 +75,10 @@ class DepartamentoTest extends TestCase
 
         // ?activo=1 es lo que deben usar los selects de formulario (§3.4): un departamento
         // dado de baja no debe ofrecerse para asignar colaboradores nuevos.
+        // El departamento de la sesión también está activo, de ahí el +1.
         $this->getJson('/api/departamentos?activo=1')
             ->assertOk()
-            ->assertJsonCount(1, 'data')
+            ->assertJsonCount(1 + self::REGISTROS_DE_SESION, 'data')
             ->assertJsonPath('data.0.nombre', 'Vigente');
 
         $this->getJson('/api/departamentos?activo=0')
@@ -76,7 +87,9 @@ class DepartamentoTest extends TestCase
             ->assertJsonPath('data.0.nombre', 'De baja');
 
         // Sin el parámetro, administración ve ambos.
-        $this->getJson('/api/departamentos')->assertOk()->assertJsonCount(2, 'data');
+        $this->getJson('/api/departamentos')
+            ->assertOk()
+            ->assertJsonCount(2 + self::REGISTROS_DE_SESION, 'data');
     }
 
     public function test_busca_por_nombre_parcial(): void

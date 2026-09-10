@@ -5,6 +5,7 @@
 
 <script setup lang="ts">
 
+import { computed } from 'vue';
 import { useRoute } from 'vue-router';
 
 import AppSidebar from "@/components/AppSidebar.vue"
@@ -27,10 +28,19 @@ import { Toaster } from "@/components/ui/sonner"
 // El título de cada vista vive en meta.title de su ruta (ver router.js).
 const route = useRoute();
 
+// El login se pinta sin sidebar ni breadcrumb: quien aún no ha entrado no tiene nada que
+// navegar, y mostrar el menú de módulos a los que no puede acceder solo confunde.
+const sinLayout = computed(() => route.meta.layout === 'blank');
+
 </script>
 
 <template>
-    <SidebarProvider>
+    <template v-if="sinLayout">
+        <router-view />
+        <Toaster rich-colors close-button position="top-right" />
+    </template>
+
+    <SidebarProvider v-else>
         <AppSidebar />
         <SidebarInset>
             <header class="flex h-16 shrink-0 items-center gap-2">

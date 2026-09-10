@@ -2,12 +2,16 @@
 
 namespace Database\Factories;
 
+use App\Models\Persona;
+use App\Models\Rol;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
 /**
+ * Cuenta de sistema de una persona (§3.1).
+ *
  * @extends Factory<User>
  */
 class UserFactory extends Factory
@@ -25,10 +29,14 @@ class UserFactory extends Factory
     public function definition(): array
     {
         return [
-            'name' => fake()->name(),
+            // Una cuenta siempre pertenece a una persona y tiene exactamente un rol (§3.1, §5.1).
+            // La columna `name` de Laravel ya no existe: la identidad vive en `personas`.
+            'persona_id' => Persona::factory(),
+            'rol_id' => Rol::factory(),
             'email' => fake()->unique()->safeEmail(),
             'email_verified_at' => now(),
             'password' => static::$password ??= Hash::make('password'),
+            'activo' => true,
             'remember_token' => Str::random(10),
         ];
     }
@@ -41,5 +49,13 @@ class UserFactory extends Factory
         return $this->state(fn (array $attributes) => [
             'email_verified_at' => null,
         ]);
+    }
+
+    /**
+     * Cuenta suspendida sin dar de baja a la persona.
+     */
+    public function inactiva(): static
+    {
+        return $this->state(fn () => ['activo' => false]);
     }
 }
