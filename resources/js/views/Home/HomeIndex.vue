@@ -1,33 +1,52 @@
 <script setup>
+import { computed } from 'vue'
 
+import { useAuthStore } from '@/stores/auth.js'
+import { modulos } from '@/modulos.js'
+
+import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+
+const auth = useAuthStore();
+
+// Solo los módulos que el rol puede abrir: la misma regla que el menú lateral. Ofrecer uno que
+// respondería 403 solo hace perder el tiempo (§5.6).
+const disponibles = computed(() => modulos.filter((modulo) => auth.tienePermiso(modulo.permiso)));
 </script>
 
 <template>
-  <div class="min-h-screen bg-neutral-50 flex flex-col items-center justify-center p-6 text-neutral-800">
-    <div class="max-w-md w-full bg-white rounded-2xl shadow-sm border border-neutral-100 p-8 text-center space-y-6">
-      <div class="mx-auto w-16 h-16 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center text-3xl font-bold">
-        🍽️
-      </div>
-      
-      <div class="space-y-2">
-        <h1 class="text-3xl font-extrabold tracking-tight text-neutral-900">
-          Comedor SPA
-        </h1>
-        <p class="text-neutral-500">
-          ¡Bienvenido a la página de inicio! Tu entorno de desarrollo Vue 3, Vite 8 y TailwindCSS v4 está listo.
-        </p>
-      </div>
-
-      <!-- <div class="flex flex-col gap-3">
-        <router-link 
-          to="/usuarios" 
-          class="inline-flex items-center justify-center px-5 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold transition-colors duration-200"
-        >
-          Ver Usuarios 👤
-        </router-link>
-      </div> -->
+    <div>
+        <h1 class="text-2xl font-bold">Hola, {{ auth.nombre }}</h1>
+        <h2 class="text-sm text-gray-600">
+            Entraste con el rol
+            <Badge variant="secondary">{{ auth.usuario?.rol?.nombre }}</Badge>
+        </h2>
     </div>
-  </div>
-</template>
 
-<style></style>
+    <div v-if="disponibles.length" class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <router-link
+            v-for="modulo in disponibles"
+            :key="modulo.url"
+            :to="modulo.url"
+            class="block"
+        >
+            <Card class="h-full transition-colors hover:bg-muted/50">
+                <CardHeader>
+                    <component :is="modulo.icon" class="h-6 w-6 text-muted-foreground" />
+                    <CardTitle class="pt-2">{{ modulo.title }}</CardTitle>
+                    <CardDescription>{{ modulo.descripcion }}</CardDescription>
+                </CardHeader>
+            </Card>
+        </router-link>
+    </div>
+
+    <Card v-else>
+        <CardHeader>
+            <CardTitle>Sin módulos disponibles</CardTitle>
+            <CardDescription>
+                Tu rol todavía no tiene permisos sobre ningún módulo administrativo. Pídele a un
+                administrador que lo revise.
+            </CardDescription>
+        </CardHeader>
+    </Card>
+</template>
