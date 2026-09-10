@@ -119,6 +119,10 @@ const paginaActual = computed({
 
 const hayFiltros = computed(() => filtros.q !== '' || filtros.activo !== '');
 
+// Los registros cargados antes de que existiera el módulo pueden no tener timestamps:
+// sin este guardia, `new Date(null)` los pinta como 31/12/1969.
+const fecha = (valor) => (valor ? new Date(valor).toLocaleString() : '—');
+
 const limpiarFiltros = () => {
     filtros.q = '';
     filtros.activo = '';
@@ -305,10 +309,10 @@ onMounted(() => fetchDepartamentos(1));
                             </Badge>
                         </TableCell>
                         <TableCell class="text-center">
-                            {{ new Date(depto.created_at).toLocaleString() }}
+                            {{ fecha(depto.created_at) }}
                         </TableCell>
                         <TableCell class="text-center">
-                            {{ new Date(depto.updated_at).toLocaleString() }}
+                            {{ fecha(depto.updated_at) }}
                         </TableCell>
                         <TableCell class="flex justify-center gap-4">
                             <SquarePen
