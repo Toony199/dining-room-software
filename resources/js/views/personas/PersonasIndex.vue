@@ -106,6 +106,23 @@ const auth = useAuthStore();
  */
 const puedeCrearCuentas = computed(() => auth.tienePermiso('usuarios.crear'));
 
+/**
+ * Por qué no se puede dar de baja a esta persona, o null si sí se puede. Replica las dos reglas
+ * del backend, que rechaza igual: la cuenta administradora del sistema, y la propia (nadie se da
+ * de baja a sí mismo).
+ */
+const motivoSinBaja = (persona) => {
+    if (persona.cuenta?.protegido) {
+        return 'Tiene la cuenta administradora del sistema: no puede darse de baja.';
+    }
+
+    if (persona.cuenta && persona.cuenta.id === auth.usuario?.id) {
+        return 'Eres tú: no puedes darte de baja a ti mismo.';
+    }
+
+    return null;
+};
+
 // §3.1: "durante el alta se deberá determinar si la persona tendrá acceso administrativo".
 // Apagado, la persona queda solo como consumidora del comedor con su gafete.
 const requiereCuenta = ref(false);
@@ -437,18 +454,16 @@ onMounted(() => {
                                 @click="editar(persona)"
                                 class="w-5 text-sky-700 cursor-pointer"
                                 ></SquarePen>
-                            <!-- La persona de la cuenta administradora no se da de baja: su cuenta
-                                 perdería el acceso y la instalación quedaría sin quien la
-                                 administre. El backend lo rechaza igual; esto evita el intento. -->
-                            <Tooltip v-if="persona.cuenta?.protegido">
+                            <!-- Ni la persona de la cuenta administradora ni uno mismo se dan de
+                                 baja (ver motivoSinBaja). El backend lo rechaza igual; esto
+                                 evita el intento. -->
+                            <Tooltip v-if="motivoSinBaja(persona)">
                                 <TooltipTrigger as-child>
                                     <span class="cursor-not-allowed">
                                         <Switch :model-value="persona.estado === 'ACTIVO'" disabled />
                                     </span>
                                 </TooltipTrigger>
-                                <TooltipContent>
-                                    Tiene la cuenta administradora del sistema: no puede darse de baja.
-                                </TooltipContent>
+                                <TooltipContent>{{ motivoSinBaja(persona) }}</TooltipContent>
                             </Tooltip>
                             <Switch
                                 v-else

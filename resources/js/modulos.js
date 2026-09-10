@@ -16,6 +16,16 @@ export const modulos = [
         icon: Users,
         permiso: 'colaboradores.ver',
         descripcion: 'Alta, edición y baja lógica del personal.',
+        items: [
+            {
+                title: 'Usuarios',
+                url: '/usuarios'
+            },
+            {
+                title: 'Roles',
+                url: '/roles'
+            }
+        ]
     },
     {
         title: 'Departamentos',
@@ -24,18 +34,18 @@ export const modulos = [
         permiso: 'departamentos.ver',
         descripcion: 'Catálogo de departamentos al que se adscribe el personal.',
     },
-    {
-        title: 'Roles',
-        url: '/roles',
-        icon: ShieldCheck,
-        permiso: 'roles.ver',
-        descripcion: 'Roles y los permisos que otorga cada uno.',
-    },
-    {
-        title: 'Usuarios',
-        url: '/usuarios',
-        icon: KeyRound,
-        permiso: 'usuarios.ver',
-        descripcion: 'Cuentas de acceso a los módulos administrativos.',
-    },
+    // {
+    //     title: 'Roles',
+    //     url: '/roles',
+    //     icon: ShieldCheck,
+    //     permiso: 'roles.ver',
+    //     descripcion: 'Roles y los permisos que otorga cada uno.',
+    // },
+    // {
+    //     title: 'Usuarios',
+    //     url: '/usuarios',
+    //     icon: KeyRound,
+    //     permiso: 'usuarios.ver',
+    //     descripcion: 'Cuentas de acceso a los módulos administrativos.',
+    // },
 ];

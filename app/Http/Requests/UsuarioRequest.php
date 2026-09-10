@@ -34,7 +34,9 @@ class UsuarioRequest extends FormRequest
             'persona_id.exists' => 'La persona seleccionada no existe o está dada de baja.',
             'persona_id.unique' => 'Esa persona ya tiene una cuenta de sistema.',
             'persona_id.in' => 'La cuenta no puede transferirse a otra persona.',
-            'rol_id.in' => 'El rol de la cuenta administradora del sistema no puede cambiarse.',
+            'rol_id.in' => $this->cuentaEditada()?->esProtegida()
+                ? 'El rol de la cuenta administradora del sistema no puede cambiarse.'
+                : 'No puedes cambiar tu propio rol: podrías quedarte sin acceso. Pídele a otro administrador que lo haga.',
         ];
     }
 
@@ -52,14 +54,30 @@ class UsuarioRequest extends FormRequest
             'persona_id' => $this->reglasPersona($cuenta),
         ];
 
-        // Cambiarle el rol a la cuenta administradora de arranque es otra forma de dejar la
-        // instalación sin quien la administre. Se acepta el mismo valor para que el formulario
-        // pueda reenviarse completo al corregir el correo.
-        if ($cuenta?->esProtegida()) {
+        // Cambiarle el rol a la cuenta administradora de arranque, o a la cuenta propia, es otra
+        // forma de quedarse sin acceso: la primera deja la instalación sin quien la administre,
+        // la segunda deja fuera a quien hizo el cambio. Se acepta el mismo valor para que el
+        // formulario pueda reenviarse completo al corregir el correo.
+        if ($cuenta?->esProtegida() || $this->esLaPropia($cuenta)) {
             $reglas['rol_id'] = ['required', 'integer', Rule::in([$cuenta->rol_id])];
         }
 
         return $reglas;
+    }
+
+    private function cuentaEditada(): ?User
+    {
+        $cuenta = $this->route('usuario');
+
+        return $cuenta instanceof User ? $cuenta : null;
+    }
+
+    /**
+     * ¿La cuenta que se edita es la de quien hace la petición?
+     */
+    private function esLaPropia(?User $cuenta): bool
+    {
+        return $cuenta !== null && $cuenta->is($this->user());
     }
 
     /**

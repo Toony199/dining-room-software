@@ -110,7 +110,7 @@ class PersonasController extends Controller
      * Baja lógica de la persona (§3.3). Nunca se elimina físicamente: su número de empleado queda
      * reservado para siempre y su historial debe seguir disponible para auditoría.
      */
-    public function desactivar(Persona $persona): PersonasResource|JsonResponse
+    public function desactivar(Request $request, Persona $persona): PersonasResource|JsonResponse
     {
         // La baja de la persona corta el acceso de su cuenta (§3.3). Si es la cuenta
         // administradora de arranque, la instalación se quedaría sin quien la administre.
@@ -118,6 +118,15 @@ class PersonasController extends Controller
             return response()->json([
                 'message' => 'Esta persona tiene la cuenta administradora del sistema y no puede darse de baja: se perdería el acceso para administrar la instalación.',
                 'errors' => ['persona' => ['La persona tiene la cuenta administradora del sistema.']],
+            ], 422);
+        }
+
+        // Nadie se da de baja a sí mismo: perdería el acceso en la siguiente petición (§3.3) y
+        // dependería de que otro administrador lo reactivara. Si de verdad se va, lo hace otro.
+        if ($persona->cuenta?->is($request->user())) {
+            return response()->json([
+                'message' => 'No puedes darte de baja a ti mismo: perderías el acceso de inmediato. Pídele a otro administrador que lo haga.',
+                'errors' => ['persona' => ['No puedes darte de baja a ti mismo.']],
             ], 422);
         }
 

@@ -309,6 +309,37 @@ const guardarPassword = async () => {
 
 const auth = useAuthStore();
 
+const esPropia = (usuario) => usuario?.id === auth.usuario?.id;
+
+/**
+ * Por qué no se puede suspender esta cuenta, o null si sí se puede. Replica las dos reglas del
+ * backend, que rechaza igual: la cuenta administradora del sistema, y la propia.
+ */
+const motivoSinSuspension = (usuario) => {
+    if (usuario.protegido) {
+        return 'Cuenta administradora del sistema: no puede suspenderse.';
+    }
+
+    if (esPropia(usuario)) {
+        return 'Es tu cuenta: no puedes suspenderla tú mismo.';
+    }
+
+    return null;
+};
+
+// Mismo criterio para el rol: ni la cuenta del sistema ni la propia pueden cambiarlo.
+const motivoRolFijo = computed(() => {
+    if (cuentaEditada.value?.protegido) {
+        return 'El rol de la cuenta administradora del sistema no puede cambiarse.';
+    }
+
+    if (editandoId.value && esPropia(cuentaEditada.value)) {
+        return 'No puedes cambiar tu propio rol: pídele a otro administrador que lo haga.';
+    }
+
+    return null;
+});
+
 onMounted(() => {
     fetchUsuarios(1);
     fetchRoles();
@@ -409,6 +440,7 @@ onMounted(() => {
                         <TableCell class="text-center">
                             {{ usuario.email }}
                             <Badge v-if="usuario.protegido" variant="outline" class="ml-1">Sistema</Badge>
+                            <Badge v-if="esPropia(usuario)" variant="secondary" class="ml-1">Tú</Badge>
                         </TableCell>
                         <TableCell class="text-center">
                             {{ usuario.persona?.nombre_completo ?? '—' }}
@@ -466,17 +498,15 @@ onMounted(() => {
                                 <TooltipContent>Restablecer contraseña</TooltipContent>
                             </Tooltip>
 
-                            <!-- La cuenta administradora del sistema no se suspende (ver
-                                 User::esProtegida). El backend lo rechaza igual. -->
-                            <Tooltip v-if="usuario.protegido">
+                            <!-- Ni la cuenta administradora del sistema ni la propia se
+                                 suspenden (ver motivoSinSuspension). El backend lo rechaza igual. -->
+                            <Tooltip v-if="motivoSinSuspension(usuario)">
                                 <TooltipTrigger as-child>
                                     <span class="cursor-not-allowed">
                                         <Switch :model-value="usuario.activo" disabled />
                                     </span>
                                 </TooltipTrigger>
-                                <TooltipContent>
-                                    Cuenta administradora del sistema: no puede suspenderse.
-                                </TooltipContent>
+                                <TooltipContent>{{ motivoSinSuspension(usuario) }}</TooltipContent>
                             </Tooltip>
                             <Switch
                                 v-else
@@ -648,7 +678,7 @@ onMounted(() => {
 
                     <div class="grid gap-2">
                         <Label for="rol_id">Rol</Label>
-                        <Select v-model="form.rol_id" :disabled="!!cuentaEditada?.protegido">
+                        <Select v-model="form.rol_id" :disabled="!!motivoRolFijo">
                             <SelectTrigger id="rol_id" class="w-full">
                                 <SelectValue placeholder="Selecciona un rol" />
                             </SelectTrigger>
@@ -663,8 +693,8 @@ onMounted(() => {
                             </SelectContent>
                         </Select>
                         <!-- §5.1: exactamente un rol por cuenta. -->
-                        <p v-if="cuentaEditada?.protegido" class="text-xs text-muted-foreground">
-                            El rol de la cuenta administradora del sistema no puede cambiarse.
+                        <p v-if="motivoRolFijo" class="text-xs text-muted-foreground">
+                            {{ motivoRolFijo }}
                         </p>
                         <p v-else class="text-xs text-muted-foreground">
                             Sus permisos serán los que el rol tenga configurados en cada momento.

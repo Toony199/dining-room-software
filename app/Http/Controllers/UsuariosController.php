@@ -106,12 +106,20 @@ class UsuariosController extends Controller
      * Es un interruptor independiente del estado de la persona: sirve para cortar el acceso
      * de alguien que sigue trabajando y usando el comedor (§3.1 vs §3.3).
      */
-    public function suspender(User $usuario): UsuarioResource|JsonResponse
+    public function suspender(Request $request, User $usuario): UsuarioResource|JsonResponse
     {
         if ($usuario->esProtegida()) {
             return response()->json([
                 'message' => 'La cuenta administradora del sistema no puede suspenderse: se perdería el acceso para administrar la instalación.',
                 'errors' => ['usuario' => ['Esta cuenta está protegida.']],
+            ], 422);
+        }
+
+        // Suspender la propia cuenta corta el acceso en la siguiente petición.
+        if ($usuario->is($request->user())) {
+            return response()->json([
+                'message' => 'No puedes suspender tu propia cuenta: perderías el acceso de inmediato. Pídele a otro administrador que lo haga.',
+                'errors' => ['usuario' => ['No puedes suspender tu propia cuenta.']],
             ], 422);
         }
 
