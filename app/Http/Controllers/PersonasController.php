@@ -3,8 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\PersonasRequest;
+use App\Http\Resources\DepartamentoAsignableResource;
 use App\Http\Resources\PersonasResource;
+use App\Models\Departamento;
 use App\Models\Persona;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -143,6 +146,32 @@ class PersonasController extends Controller
         $persona->update(['estado' => 'ACTIVO']);
 
         return new PersonasResource($persona->load(['departamento', 'cuenta.rol']));
+    }
+
+    /**
+     * Departamentos que pueden asignarse a una persona: solo los activos (§3.4), `id` y `nombre`.
+     *
+     * Existe para que dar de alta o editar personal no obligue a tener `departamentos.ver`, que
+     * abre el módulo de departamentos completo. Sin este catálogo, un rol con
+     * `colaboradores.crear` pero sin `departamentos.ver` veía vacío el select y no podía dar de
+     * alta a nadie.
+     *
+     * Lo puede leer cualquiera con un permiso `colaboradores.*`: el listado también lo usa para
+     * su filtro, y el nombre del departamento ya aparece en cada fila.
+     */
+    public function departamentosAsignables(): AnonymousResourceCollection
+    {
+        // `can:` solo admite una clave; aquí basta cualquiera de las tres.
+        if (! Gate::any(['colaboradores.ver', 'colaboradores.crear', 'colaboradores.editar'])) {
+            throw new AuthorizationException;
+        }
+
+        $departamentos = Departamento::query()
+            ->where('activo', true)
+            ->orderBy('nombre')
+            ->get(['id', 'nombre']);
+
+        return DepartamentoAsignableResource::collection($departamentos);
     }
 
     /**

@@ -38,6 +38,10 @@ Route::middleware('auth:sanctum')->group(function () {
     // Personas (§3). Sin DELETE: la baja es lógica (§3.3).
     Route::get('/personas', [PersonasController::class, 'index'])->middleware('can:colaboradores.ver');
     Route::post('/personas', [PersonasController::class, 'store'])->middleware('can:colaboradores.crear');
+    // Catálogo de departamentos del formulario de personas: lo mínimo para elegir uno sin
+    // exigir `departamentos.ver`. Va ANTES de `/personas/{persona}` por el route binding, y
+    // comprueba sus permisos en el controlador (acepta cualquier `colaboradores.*`).
+    Route::get('/personas/departamentos-asignables', [PersonasController::class, 'departamentosAsignables']);
     Route::get('/personas/{persona}', [PersonasController::class, 'show'])->middleware('can:colaboradores.ver');
     Route::put('/personas/{persona}', [PersonasController::class, 'update'])->middleware('can:colaboradores.editar');
     Route::patch('/personas/{persona}/desactivar', [PersonasController::class, 'desactivar'])->middleware('can:colaboradores.desactivar');

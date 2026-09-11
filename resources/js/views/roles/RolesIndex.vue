@@ -3,6 +3,7 @@ import { computed, reactive, ref, onMounted, watch } from 'vue'
 import { useDebounceFn } from '@vueuse/core'
 
 import { useRoles } from '@/composables/useRoles.js'
+import { useAuthStore } from '@/stores/auth.js'
 
 import {
     Card,
@@ -84,6 +85,19 @@ const {
     activarRol,
     limpiarErrores,
 } = useRoles();
+
+const auth = useAuthStore();
+
+// Qué acciones ofrece la interfaz según el rol. Es comodidad, no seguridad: el backend comprueba
+// el permiso en cada operación (§5.6); esto solo evita ofrecer botones que responderían 403.
+const puede = computed(() => ({
+    crear: auth.tienePermiso('roles.crear'),
+    editar: auth.tienePermiso('roles.editar'),
+    desactivar: auth.tienePermiso('roles.desactivar'),
+}));
+
+// Sin permiso para editar ni para desactivar, la columna Acciones sobra.
+const hayAcciones = computed(() => puede.value.editar || puede.value.desactivar);
 
 // Estado del formulario. editandoId = null → alta; con id → edición.
 const editandoId = ref(null);
@@ -278,7 +292,7 @@ onMounted(() => {
                 </div>
 
                 <div class="flex justify-end">
-                    <Button @click="abrirCrear">
+                    <Button v-if="puede.crear" @click="abrirCrear">
                         <Plus/>
                         Agregar
                     </Button>
@@ -326,7 +340,7 @@ onMounted(() => {
                         <TableHead class="text-center font-bold">Usuarios</TableHead>
                         <TableHead class="text-center font-bold">Estado</TableHead>
                         <TableHead class="text-center font-bold">Modificado</TableHead>
-                        <TableHead class="text-center font-bold">Acciones</TableHead>
+                        <TableHead v-if="hayAcciones" class="text-center font-bold">Acciones</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -357,11 +371,11 @@ onMounted(() => {
                             </Badge>
                         </TableCell>
                         <TableCell class="text-center">{{ fecha(rol.updated_at) }}</TableCell>
-                        <TableCell class="flex justify-center gap-4">
+                        <TableCell v-if="hayAcciones" class="flex justify-center gap-4">
                             <!-- El rol de acceso total no se edita ni se desactiva (§5.2):
                                  hacerlo dejaría la instalación sin quien pueda administrarla.
                                  El backend lo rechaza igual; esto solo evita el intento. -->
-                            <Tooltip v-if="rol.protegido">
+                            <Tooltip v-if="puede.editar && rol.protegido">
                                 <TooltipTrigger as-child>
                                     <Lock class="w-5 text-muted-foreground cursor-not-allowed" />
                                 </TooltipTrigger>
@@ -371,12 +385,12 @@ onMounted(() => {
                                 </TooltipContent>
                             </Tooltip>
                             <SquarePen
-                                v-else
+                                v-else-if="puede.editar"
                                 @click="editar(rol)"
                                 class="w-5 text-sky-700 cursor-pointer"
                                 ></SquarePen>
 
-                            <Tooltip v-if="rol.protegido">
+                            <Tooltip v-if="puede.desactivar && rol.protegido">
                                 <TooltipTrigger as-child>
                                     <span class="cursor-not-allowed">
                                         <Switch :model-value="true" disabled />
@@ -388,7 +402,7 @@ onMounted(() => {
                             <!-- Un rol con usuarios asignados no se puede desactivar (§5.5):
                                  el switch se bloquea y el tooltip explica por qué, en vez de
                                  dejar que el usuario descubra el 422 al intentarlo. -->
-                            <Tooltip v-else-if="rol.activo && rol.usuarios_count > 0">
+                            <Tooltip v-else-if="puede.desactivar && rol.activo && rol.usuarios_count > 0">
                                 <TooltipTrigger as-child>
                                     <span class="cursor-not-allowed">
                                         <Switch :model-value="true" disabled />
@@ -400,7 +414,7 @@ onMounted(() => {
                                 </TooltipContent>
                             </Tooltip>
                             <Switch
-                                v-else
+                                v-else-if="puede.desactivar"
                                 :model-value="rol.activo"
                                 :disabled="loading"
                                 @update:model-value="(val) => onToggleActivo(rol, val)"

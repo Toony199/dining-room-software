@@ -8,6 +8,7 @@ use App\Models\Departamento;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Facades\Gate;
 
 class DepartamentosController extends Controller
 {
@@ -62,7 +63,16 @@ class DepartamentosController extends Controller
      */
     public function update(DepartamentoRequest $request, Departamento $departamento): DepartamentoResource
     {
-        $departamento->update($request->validated());
+        $datos = $request->validated();
+
+        // El formulario puede cambiar el estado, pero hacerlo es activar o desactivar, que tienen
+        // su propio permiso. Sin esto, `departamentos.editar` bastaba para dar de baja (§3.4).
+        // Reenviar el mismo estado al corregir el nombre no lo exige.
+        if (array_key_exists('activo', $datos) && (bool) $datos['activo'] !== $departamento->activo) {
+            Gate::authorize('departamentos.desactivar');
+        }
+
+        $departamento->update($datos);
 
         return new DepartamentoResource($departamento);
     }

@@ -99,6 +99,17 @@ const form = reactive({
 
 const auth = useAuthStore();
 
+// Qué acciones ofrece la interfaz según el rol. Es comodidad, no seguridad: el backend comprueba
+// el permiso en cada operación (§5.6); esto solo evita ofrecer botones que responderían 403.
+const puede = computed(() => ({
+    crear: auth.tienePermiso('colaboradores.crear'),
+    editar: auth.tienePermiso('colaboradores.editar'),
+    desactivar: auth.tienePermiso('colaboradores.desactivar'),
+}));
+
+// Sin permiso para editar ni para desactivar, la columna Acciones sobra.
+const hayAcciones = computed(() => puede.value.editar || puede.value.desactivar);
+
 /**
  * Crear la cuenta junto con la persona es crear una cuenta, y el backend exige `usuarios.crear`
  * además de `colaboradores.crear` (§5.6). Sin ese permiso no se ofrece el bloque ni se pide el
@@ -327,7 +338,7 @@ onMounted(() => {
 <template>
 
     <div>
-        <h1 class="text-2xl font-bold">Personas</h1>
+        <h1 class="text-2xl font-bold">Colaboradores</h1>
         <h2 class="text-sm text-gray-600">Módulo de gestión de personal.</h2>
     </div>
 
@@ -343,7 +354,7 @@ onMounted(() => {
                 </div>
 
                 <div class="flex justify-end">
-                    <Button @click="abrirCrear">
+                    <Button v-if="puede.crear" @click="abrirCrear">
                         <Plus/>
                         Agregar
                     </Button>
@@ -406,11 +417,11 @@ onMounted(() => {
                         </TableHead>
                         <TableHead class="text-center font-bold">Nombre</TableHead>
                         <TableHead class="text-center font-bold">Departamento</TableHead>
-                        <TableHead class="text-center font-bold">Acceso</TableHead>
+                        <TableHead class="text-center font-bold">Rol</TableHead>
                         <TableHead class="text-center font-bold">Estado</TableHead>
                         <TableHead class="text-center font-bold">Creado</TableHead>
                         <TableHead class="text-center font-bold">Modificado</TableHead>
-                        <TableHead class="text-center font-bold">Acciones</TableHead>
+                        <TableHead v-if="hayAcciones" class="text-center font-bold">Acciones</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -449,15 +460,16 @@ onMounted(() => {
                         <TableCell class="text-center">
                             {{ fecha(persona.updated_at) }}
                         </TableCell>
-                        <TableCell class="flex justify-center gap-4">
+                        <TableCell v-if="hayAcciones" class="flex justify-center gap-4">
                             <SquarePen
+                                v-if="puede.editar"
                                 @click="editar(persona)"
                                 class="w-5 text-sky-700 cursor-pointer"
                                 ></SquarePen>
                             <!-- Ni la persona de la cuenta administradora ni uno mismo se dan de
                                  baja (ver motivoSinBaja). El backend lo rechaza igual; esto
                                  evita el intento. -->
-                            <Tooltip v-if="motivoSinBaja(persona)">
+                            <Tooltip v-if="puede.desactivar && motivoSinBaja(persona)">
                                 <TooltipTrigger as-child>
                                     <span class="cursor-not-allowed">
                                         <Switch :model-value="persona.estado === 'ACTIVO'" disabled />
@@ -466,7 +478,7 @@ onMounted(() => {
                                 <TooltipContent>{{ motivoSinBaja(persona) }}</TooltipContent>
                             </Tooltip>
                             <Switch
-                                v-else
+                                v-else-if="puede.desactivar"
                                 :model-value="persona.estado === 'ACTIVO'"
                                 :disabled="loading"
                                 @update:model-value="(val) => onToggleEstado(persona, val)"

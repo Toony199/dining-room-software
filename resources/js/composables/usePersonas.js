@@ -91,9 +91,9 @@ export function usePersonas() {
      */
     const fetchDepartamentos = async () => {
         try {
-            const { data } = await axios.get('/api/departamentos', {
-                params: { activo: 1, per_page: 100 },
-            });
+            // Catálogo propio del formulario de personas: no exige `departamentos.ver`, que abre
+            // el módulo de departamentos completo.
+            const { data } = await axios.get('/api/personas/departamentos-asignables');
 
             departamentos.value = data.data;
         } catch (error) {

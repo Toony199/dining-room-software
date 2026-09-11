@@ -3,6 +3,7 @@ import { computed, reactive, ref, onMounted, watch } from 'vue'
 import { useDebounceFn } from '@vueuse/core'
 
 import { useDepartamentosApi } from '@/composables/useDepartamentosApi.js'
+import { useAuthStore } from '@/stores/auth.js'
 
 import {
     Card,
@@ -80,6 +81,19 @@ const {
     activarDepartamento,
     limpiarErrores,
 } = useDepartamentosApi();
+
+const auth = useAuthStore();
+
+// Qué acciones ofrece la interfaz según el rol. Es comodidad, no seguridad: el backend comprueba
+// el permiso en cada operación (§5.6); esto solo evita ofrecer botones que responderían 403.
+const puede = computed(() => ({
+    crear: auth.tienePermiso('departamentos.crear'),
+    editar: auth.tienePermiso('departamentos.editar'),
+    desactivar: auth.tienePermiso('departamentos.desactivar'),
+}));
+
+// Sin permiso para editar ni para desactivar, la columna Acciones sobra.
+const hayAcciones = computed(() => puede.value.editar || puede.value.desactivar);
 
 // Estado del formulario. editandoId = null → alta; con id → edición.
 const editandoId = ref(null);
@@ -238,7 +252,7 @@ onMounted(() => fetchDepartamentos(1));
                 </div>
 
                 <div class="flex justify-end">
-                    <Button @click="abrirCrear">
+                    <Button v-if="puede.crear" @click="abrirCrear">
                         <Plus/>
                         Agregar
                     </Button>
@@ -287,7 +301,7 @@ onMounted(() => fetchDepartamentos(1));
                         <TableHead class="text-center font-bold">Estado</TableHead>
                         <TableHead class="text-center font-bold">Creado</TableHead>
                         <TableHead class="text-center font-bold">Modificado</TableHead>
-                        <TableHead class="text-center font-bold">Acciones</TableHead>
+                        <TableHead v-if="hayAcciones" class="text-center font-bold">Acciones</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -314,12 +328,14 @@ onMounted(() => fetchDepartamentos(1));
                         <TableCell class="text-center">
                             {{ fecha(depto.updated_at) }}
                         </TableCell>
-                        <TableCell class="flex justify-center gap-4">
+                        <TableCell v-if="hayAcciones" class="flex justify-center gap-4">
                             <SquarePen
+                                v-if="puede.editar"
                                 @click="editar(depto)"
                                 class="w-5 text-sky-700 cursor-pointer"
                                 ></SquarePen>
                             <Switch
+                                v-if="puede.desactivar"
                                 :model-value="depto.activo"
                                 :disabled="loading"
                                 @update:model-value="(val) => onToggleActivo(depto, val)"
@@ -419,7 +435,7 @@ onMounted(() => fetchDepartamentos(1));
                         </p>
                     </div>
 
-                    <div class="flex items-center gap-2">
+                    <div v-if="puede.desactivar" class="flex items-center gap-2">
                         <Switch id="activo" v-model="form.activo" />
                         <Label for="activo">Activo</Label>
                     </div>

@@ -26,7 +26,6 @@ class RolRequest extends FormRequest
             'nombre.string' => 'El nombre debe ser una cadena de texto.',
             'nombre.max' => 'El nombre no debe exceder los :max caracteres.',
             'descripcion.max' => 'La descripción no debe exceder los :max caracteres.',
-            'activo.boolean' => 'El campo activo debe ser un valor booleano.',
             'permisos.array' => 'Los permisos deben enviarse como una lista.',
             'permisos.*.exists' => 'Uno de los permisos seleccionados no existe.',
         ];
@@ -54,7 +53,9 @@ class RolRequest extends FormRequest
                 Rule::unique('roles', 'nombre')->ignore($id),
             ],
             'descripcion' => ['nullable', 'string', 'max:255'],
-            'activo' => ['boolean'],
+            // `activo` no se acepta aquí: activar y desactivar tienen sus endpoints, que exigen
+            // `roles.desactivar` y aplican §5.5. Aceptarlo en la edición dejaba desactivar un rol
+            // con usuarios asignados teniendo solo `roles.editar`.
             'permisos' => ['sometimes', 'array'],
             'permisos.*' => [Rule::exists('permisos', 'id')],
         ];

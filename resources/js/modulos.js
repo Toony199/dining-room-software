@@ -11,7 +11,7 @@ import { KeyRound, Landmark, ShieldCheck, Users } from '@lucide/vue';
  */
 export const modulos = [
     {
-        title: 'Personas',
+        title: 'Colaboradores',
         url: '/personas',
         icon: Users,
         permiso: 'colaboradores.ver',

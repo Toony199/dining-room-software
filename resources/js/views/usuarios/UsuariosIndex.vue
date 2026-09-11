@@ -309,6 +309,17 @@ const guardarPassword = async () => {
 
 const auth = useAuthStore();
 
+// Qué acciones ofrece la interfaz según el rol. Es comodidad, no seguridad: el backend comprueba
+// el permiso en cada operación (§5.6); esto solo evita ofrecer botones que responderían 403.
+const puede = computed(() => ({
+    crear: auth.tienePermiso('usuarios.crear'),
+    editar: auth.tienePermiso('usuarios.editar'),
+    desactivar: auth.tienePermiso('usuarios.desactivar'),
+}));
+
+// Sin permiso para editar ni para desactivar, la columna Acciones sobra.
+const hayAcciones = computed(() => puede.value.editar || puede.value.desactivar);
+
 const esPropia = (usuario) => usuario?.id === auth.usuario?.id;
 
 /**
@@ -372,7 +383,7 @@ onMounted(() => {
                 </div>
 
                 <div class="flex justify-end">
-                    <Button @click="abrirCrear">
+                    <Button v-if="puede.crear" @click="abrirCrear">
                         <Plus/>
                         Agregar
                     </Button>
@@ -432,7 +443,7 @@ onMounted(() => {
                         <TableHead class="text-center font-bold">Rol</TableHead>
                         <TableHead class="text-center font-bold">Estado</TableHead>
                         <TableHead class="text-center font-bold">Modificado</TableHead>
-                        <TableHead class="text-center font-bold">Acciones</TableHead>
+                        <TableHead v-if="hayAcciones" class="text-center font-bold">Acciones</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -477,8 +488,8 @@ onMounted(() => {
                             </div>
                         </TableCell>
                         <TableCell class="text-center">{{ fecha(usuario.updated_at) }}</TableCell>
-                        <TableCell class="flex justify-center gap-4">
-                            <Tooltip>
+                        <TableCell v-if="hayAcciones" class="flex justify-center gap-4">
+                            <Tooltip v-if="puede.editar">
                                 <TooltipTrigger as-child>
                                     <SquarePen
                                         @click="editar(usuario)"
@@ -488,7 +499,7 @@ onMounted(() => {
                                 <TooltipContent>Editar correo y rol</TooltipContent>
                             </Tooltip>
 
-                            <Tooltip>
+                            <Tooltip v-if="puede.editar">
                                 <TooltipTrigger as-child>
                                     <KeyRound
                                         @click="abrirPassword(usuario)"
@@ -500,7 +511,7 @@ onMounted(() => {
 
                             <!-- Ni la cuenta administradora del sistema ni la propia se
                                  suspenden (ver motivoSinSuspension). El backend lo rechaza igual. -->
-                            <Tooltip v-if="motivoSinSuspension(usuario)">
+                            <Tooltip v-if="puede.desactivar && motivoSinSuspension(usuario)">
                                 <TooltipTrigger as-child>
                                     <span class="cursor-not-allowed">
                                         <Switch :model-value="usuario.activo" disabled />
@@ -509,7 +520,7 @@ onMounted(() => {
                                 <TooltipContent>{{ motivoSinSuspension(usuario) }}</TooltipContent>
                             </Tooltip>
                             <Switch
-                                v-else
+                                v-else-if="puede.desactivar"
                                 :model-value="usuario.activo"
                                 :disabled="loading"
                                 @update:model-value="(val) => onToggleActivo(usuario, val)"
