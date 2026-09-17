@@ -57,6 +57,7 @@ class RolSeeder extends Seeder
             'permisos' => [
                 'colaboradores.ver',
                 'departamentos.ver',
+                'gafetes.ver',
                 'periodos.ver',
                 'pagos.ver',
                 'reportes.ver',
@@ -68,6 +69,7 @@ class RolSeeder extends Seeder
             'permisos' => [
                 'colaboradores.ver',
                 'departamentos.ver',
+                'gafetes.ver',
                 'periodos.ver',
                 'pagos.ver',
                 'reportes.ver',

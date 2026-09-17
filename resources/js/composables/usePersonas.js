@@ -125,11 +125,12 @@ export function usePersonas() {
         limpiarErrores();
         try {
             loading.value = true;
-            await axios.post('/api/personas', payload);
+            const { data } = await axios.post('/api/personas', payload);
             await irAPrimeraPagina();
             toast.success('Persona registrada.');
 
-            return true;
+            // Devuelve la persona creada: el formulario necesita su id para subir la foto.
+            return data.data;
         } catch (error) {
             manejarError(error, 'No se pudo registrar la persona.');
 
@@ -194,6 +195,39 @@ export function usePersonas() {
         }
     };
 
+    /**
+     * Sube la fotografía de una persona (§3.1), la misma que muestra su gafete. Devuelve true si
+     * se guardó.
+     */
+    const subirFoto = async (personaId, foto) => {
+        const extension = { 'image/webp': 'webp', 'image/png': 'png' }[foto.type] ?? 'jpg';
+        const cuerpo = new FormData();
+        cuerpo.append('foto', foto, `foto.${extension}`);
+
+        try {
+            loading.value = true;
+            await axios.post(`/api/personas/${personaId}/foto`, cuerpo);
+            await fetchPersonas();
+            toast.success('Fotografía guardada.');
+
+            return true;
+        } catch (error) {
+            const status = error.response?.status;
+
+            // 401 y 403 los explica el interceptor global. Un 422 aquí no tiene campo donde
+            // pintarse, porque el formulario ya se cerró: va a un toast.
+            if (status !== 401 && status !== 403) {
+                toast.error('No se pudo guardar la fotografía.', {
+                    description: error.response?.data?.message ?? error.message,
+                });
+            }
+
+            return false;
+        } finally {
+            loading.value = false;
+        }
+    };
+
     return {
         // states
         loading,
@@ -213,6 +247,7 @@ export function usePersonas() {
         updatePersona,
         desactivarPersona,
         activarPersona,
+        subirFoto,
         limpiarErrores,
     };
 }

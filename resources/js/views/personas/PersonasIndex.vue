@@ -4,6 +4,8 @@ import { useDebounceFn } from '@vueuse/core'
 
 import { usePersonas } from '@/composables/usePersonas.js'
 import { useAuthStore } from '@/stores/auth.js'
+import GafeteModal from '@/components/gafetes/GafeteModal.vue'
+import CapturaFoto from '@/components/gafetes/CapturaFoto.vue'
 
 import {
     Card,
@@ -24,7 +26,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 
-import { SquarePen, Plus, SearchX, Search } from '@lucide/vue'
+import { SquarePen, Plus, SearchX, Search, IdCard } from '@lucide/vue'
 
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
@@ -84,6 +86,7 @@ const {
     updatePersona,
     desactivarPersona,
     activarPersona,
+    subirFoto,
     limpiarErrores,
 } = usePersonas();
 
@@ -97,6 +100,21 @@ const form = reactive({
     departamento_id: '',
 });
 
+// Fotografía (§3.1). Es un dato de la persona: se toma aquí, en el alta o en la edición, y es la
+// que muestra su gafete. Se sube justo después de guardar, porque en el alta la persona todavía
+// no existe. Subirla exige `colaboradores.editar`, así que sin ese permiso no se ofrece.
+const tomandoFoto = ref(false);
+const fotoNueva = ref(null);
+
+const alCapturarFoto = (blob) => {
+    fotoNueva.value = blob;
+};
+
+const cancelarFoto = () => {
+    tomandoFoto.value = false;
+    fotoNueva.value = null;
+};
+
 const auth = useAuthStore();
 
 // Qué acciones ofrece la interfaz según el rol. Es comodidad, no seguridad: el backend comprueba
@@ -105,10 +123,30 @@ const puede = computed(() => ({
     crear: auth.tienePermiso('colaboradores.crear'),
     editar: auth.tienePermiso('colaboradores.editar'),
     desactivar: auth.tienePermiso('colaboradores.desactivar'),
+    verGafetes: auth.tienePermiso('gafetes.ver'),
+    emitirGafete: auth.tienePermiso('gafetes.emitir'),
+    // Imprimir lo puede quien emite o quien solo reimprime, igual que en el backend.
+    imprimirGafete: auth.tienePermiso('gafetes.emitir') || auth.tienePermiso('gafetes.reimprimir'),
 }));
 
-// Sin permiso para editar ni para desactivar, la columna Acciones sobra.
-const hayAcciones = computed(() => puede.value.editar || puede.value.desactivar);
+const puedeConGafetes = computed(
+    () => puede.value.verGafetes || puede.value.emitirGafete || puede.value.imprimirGafete
+);
+
+// Sin ninguna acción disponible sobre las filas, la columna Acciones sobra.
+const hayAcciones = computed(
+    () => puede.value.editar || puede.value.desactivar || puedeConGafetes.value
+);
+
+// --- Gafetes (§4) ----------------------------------------------------------
+
+const modalgafete = ref(false);
+const personaGafete = ref(null);
+
+const abrirGafete = (persona) => {
+    personaGafete.value = persona;
+    modalgafete.value = true;
+};
 
 /**
  * Crear la cuenta junto con la persona es crear una cuenta, y el backend exige `usuarios.crear`
@@ -204,6 +242,13 @@ const personaEditada = ref(null);
 const opcionesDepartamento = computed(() => {
     const propio = personaEditada.value?.departamento;
 
+    // Mientras el catálogo no llega no se puede saber si el departamento propio sigue activo: se
+    // ofrece tal cual. Si se comparara contra la lista vacía, se marcaría como "(inactivo)" a
+    // cualquiera que abra el formulario en cuanto carga la página.
+    if (!departamentos.value.length) {
+        return propio ? [propio] : [];
+    }
+
     if (!propio || departamentos.value.some((d) => d.id === propio.id)) {
         return departamentos.value;
     }
@@ -277,6 +322,7 @@ const resetForm = () => {
     cuenta.password = '';
     cuenta.password_confirmation = '';
     cuenta.rol_id = '';
+    cancelarFoto();
     limpiarErrores();
 };
 
@@ -289,6 +335,7 @@ const editar = (persona) => {
     form.primer_apellido = persona.primer_apellido;
     form.segundo_apellido = persona.segundo_apellido ?? '';
     form.departamento_id = String(persona.departamento_id);
+    cancelarFoto();
     limpiarErrores();
     modalpersona.value = true;
 };
@@ -312,6 +359,13 @@ const guardar = async () => {
     const ok = editandoId.value
         ? await updatePersona(editandoId.value, payload)
         : await createPersona(payload);
+
+    // La foto se sube aparte y después: en el alta la persona apenas existe. Si esto falla, la
+    // persona queda guardada igual (la foto es opcional), el aviso lo explica y se puede volver a
+    // tomar editándola.
+    if (ok && fotoNueva.value) {
+        await subirFoto(editandoId.value ?? ok.id, fotoNueva.value);
+    }
 
     // Si la API devolvió errores de validación (422), `ok` es false y
     // dejamos el modal abierto mostrando los mensajes.
@@ -461,6 +515,11 @@ onMounted(() => {
                             {{ fecha(persona.updated_at) }}
                         </TableCell>
                         <TableCell v-if="hayAcciones" class="flex justify-center gap-4">
+                            <IdCard
+                                v-if="puedeConGafetes"
+                                @click="abrirGafete(persona)"
+                                class="w-5 text-emerald-700 cursor-pointer"
+                            />
                             <SquarePen
                                 v-if="puede.editar"
                                 @click="editar(persona)"
@@ -552,7 +611,7 @@ onMounted(() => {
     </AlertDialog>
 
     <Dialog v-model:open="modalpersona">
-        <DialogContent class="sm:max-w-md">
+        <DialogContent class="max-h-[92vh] overflow-y-auto sm:max-w-md">
             <form @submit.prevent="guardar">
                 <DialogHeader>
                     <DialogTitle>
@@ -648,6 +707,41 @@ onMounted(() => {
                     <!-- Cuenta de sistema (§3.1). Solo en el alta: cambiar el correo, el rol o
                          la contraseña de una cuenta existente va por el módulo de usuarios, para
                          no convertir este formulario en una segunda puerta a las credenciales. -->
+                    <!-- Fotografía (§3.1): la misma que se imprime en el gafete. -->
+                    <div v-if="puede.editar" class="rounded-md border p-3 grid gap-3">
+                        <div class="flex items-center justify-between gap-2">
+                            <div class="grid gap-0.5">
+                                <Label>Fotografía (opcional)</Label>
+                                <span class="text-xs text-muted-foreground">
+                                    Es la que aparece en el gafete.
+                                </span>
+                            </div>
+                            <Button
+                                v-if="!tomandoFoto"
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                @click="tomandoFoto = true"
+                            >
+                                {{ personaEditada?.foto_url ? 'Cambiar foto' : 'Tomar foto' }}
+                            </Button>
+                            <Button v-else type="button" size="sm" variant="ghost" @click="cancelarFoto">
+                                Cancelar
+                            </Button>
+                        </div>
+
+                        <CapturaFoto v-if="tomandoFoto" @capturada="alCapturarFoto" />
+                        <img
+                            v-else-if="personaEditada?.foto_url"
+                            :src="personaEditada.foto_url"
+                            alt="Fotografía actual"
+                            class="mx-auto aspect-3/4 w-24 rounded-md border object-cover"
+                        />
+                        <p v-if="fotoNueva" class="text-center text-xs text-muted-foreground">
+                            La foto se guardará al presionar {{ editandoId ? 'Actualizar' : 'Guardar' }}.
+                        </p>
+                    </div>
+
                     <div v-if="!editandoId && puedeCrearCuentas" class="rounded-md border p-3 grid gap-3">
                         <div class="flex items-start gap-2">
                             <Switch id="requiere_cuenta" v-model="requiereCuenta" />
@@ -734,5 +828,11 @@ onMounted(() => {
             </form>
         </DialogContent>
     </Dialog>
+
+    <GafeteModal
+        v-model:open="modalgafete"
+        :persona="personaGafete"
+        @actualizado="fetchPersonas()"
+    />
 
 </template>

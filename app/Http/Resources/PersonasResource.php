@@ -51,7 +51,14 @@ class PersonasResource extends JsonResource
                     'nombre' => $this->cuenta->rol->nombre,
                 ] : null,
             ]),
-            'foto_path' => $this->foto_path,
+            // Resumen del gafete activo, sin el token del QR: ese solo sale por la impresión.
+            'gafete' => $this->whenLoaded('gafeteActivo', fn () => $this->gafeteActivo === null ? null : [
+                'id' => $this->gafeteActivo->id,
+                'emitido_en' => $this->gafeteActivo->emitido_en,
+            ]),
+            // La ruta del archivo no sale del servidor: solo la URL del API que entrega la foto
+            // a quien tiene permiso (§3.1).
+            'foto_url' => $this->urlDeFoto(),
             'estado' => $this->estado,
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,

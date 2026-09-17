@@ -348,12 +348,13 @@ class RolTest extends TestCase
         $this->seed(RolSeeder::class);
 
         // Un módulo nuevo agrega su permiso al catálogo…
-        Permiso::create(['clave' => 'gafetes.emitir', 'descripcion' => 'Emitir gafetes.', 'modulo' => 'gafetes']);
+        // Clave ficticia a propósito: una real (como las de gafetes) ya la siembra PermisoSeeder.
+        Permiso::create(['clave' => 'modulo_futuro.probar', 'descripcion' => 'Permiso de un módulo aún inexistente.', 'modulo' => 'modulo_futuro']);
         $this->seed(RolSeeder::class);
 
         // …y el rol de acceso total lo adquiere, si no nadie podría administrarlo.
         $admin = Rol::where('nombre', 'Administrador')->firstOrFail();
-        $this->assertTrue($admin->permisos->contains('clave', 'gafetes.emitir'));
+        $this->assertTrue($admin->permisos->contains('clave', 'modulo_futuro.probar'));
         $this->assertSame(Permiso::count(), $admin->permisos()->count());
     }
 }

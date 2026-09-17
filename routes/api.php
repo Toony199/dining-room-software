@@ -2,6 +2,8 @@
 
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DepartamentosController;
+use App\Http\Controllers\FotosPersonaController;
+use App\Http\Controllers\GafetesController;
 use App\Http\Controllers\PermisosController;
 use App\Http\Controllers\PersonasController;
 use App\Http\Controllers\RolesController;
@@ -46,6 +48,19 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/personas/{persona}', [PersonasController::class, 'update'])->middleware('can:colaboradores.editar');
     Route::patch('/personas/{persona}/desactivar', [PersonasController::class, 'desactivar'])->middleware('can:colaboradores.desactivar');
     Route::patch('/personas/{persona}/activar', [PersonasController::class, 'activar'])->middleware('can:colaboradores.desactivar');
+
+    // Gafetes (§4). Sin DELETE ni edición: un gafete solo se reemplaza y el historial se
+    // conserva (§4.3). El token del QR solo sale por la impresión, que comprueba sus permisos
+    // en el controlador (acepta `gafetes.emitir` o `gafetes.reimprimir`).
+    Route::get('/personas/{persona}/gafetes', [GafetesController::class, 'index'])->middleware('can:gafetes.ver');
+    Route::post('/personas/{persona}/gafetes', [GafetesController::class, 'store'])->middleware('can:gafetes.emitir');
+    Route::get('/gafetes/{gafete}/impresion', [GafetesController::class, 'impresion']);
+
+    // Fotografía de la persona (§3.1). Privada: el archivo vive fuera de public/ y solo sale por
+    // aquí. Verla comprueba sus permisos en el controlador (colaboradores.ver o gafetes.*);
+    // tomarla o cambiarla es editar a la persona.
+    Route::get('/personas/{persona}/foto', [FotosPersonaController::class, 'show']);
+    Route::post('/personas/{persona}/foto', [FotosPersonaController::class, 'store'])->middleware('can:colaboradores.editar');
 
     // Roles (§5.2). Sin DELETE: un rol se desactiva (§5.5).
     Route::get('/roles', [RolesController::class, 'index'])->middleware('can:roles.ver');

@@ -45,7 +45,7 @@ class PersonaTest extends TestCase
                 'data' => [[
                     'id', 'numero_empleado', 'nombre', 'primer_apellido', 'segundo_apellido',
                     'nombre_completo', 'departamento_id', 'departamento' => ['id', 'nombre', 'activo'],
-                    'foto_path', 'estado', 'created_at', 'updated_at',
+                    'foto_url', 'estado', 'created_at', 'updated_at',
                 ]],
                 'links' => ['first', 'last', 'prev', 'next'],
                 'meta' => ['current_page', 'last_page', 'per_page', 'total'],
@@ -201,7 +201,7 @@ class PersonaTest extends TestCase
 
         $response->assertCreated()
             ->assertJsonPath('data.estado', 'ACTIVO')
-            ->assertJsonPath('data.foto_path', null);
+            ->assertJsonPath('data.foto_url', null);
     }
 
     public function test_numero_de_empleado_es_obligatorio(): void

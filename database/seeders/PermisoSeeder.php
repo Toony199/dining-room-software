@@ -51,6 +51,12 @@ class PermisoSeeder extends Seeder
             'departamentos.editar' => 'Editar departamentos.',
             'departamentos.desactivar' => 'Desactivar departamentos.',
         ],
+        // No aparecen en §5.3; vienen del catálogo completo de docs/analisis-diseno.md §4.
+        'gafetes' => [
+            'gafetes.ver' => 'Consultar el historial de gafetes de una persona.',
+            'gafetes.emitir' => 'Emitir o reponer gafetes; el anterior deja de funcionar.',
+            'gafetes.reimprimir' => 'Volver a imprimir el gafete activo de una persona.',
+        ],
         'periodos' => [
             'periodos.ver' => 'Consultar los periodos de servicio.',
             'periodos.crear' => 'Crear periodos de servicio.',

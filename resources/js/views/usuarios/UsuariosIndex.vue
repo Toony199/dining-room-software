@@ -184,6 +184,12 @@ const motivoBloqueo = (usuario) => {
 const opcionesRol = computed(() => {
     const propio = cuentaEditada.value?.rol;
 
+    // Mientras el catálogo no llega no se puede saber si el rol propio sigue activo: se ofrece tal
+    // cual, sin marcarlo como "(desactivado)".
+    if (!roles.value.length) {
+        return propio ? [propio] : [];
+    }
+
     if (!propio || roles.value.some((r) => r.id === propio.id)) {
         return roles.value;
     }

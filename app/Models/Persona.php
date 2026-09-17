@@ -8,13 +8,26 @@ use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
+use RuntimeException;
+use Throwable;
 
 #[Fillable(['numero_empleado', 'nombre', 'primer_apellido', 'segundo_apellido', 'departamento_id', 'foto_path', 'estado'])]
 class Persona extends Model
 {
     /** @use HasFactory<PersonaFactory> */
     use HasFactory;
+
+    /**
+     * Disco de las fotografías (§3.1): el privado, fuera de `public/`. Son datos personales y
+     * solo se entregan por el API, a quien tiene sesión y permiso.
+     */
+    public const DISCO_FOTOS = 'local';
 
     /**
      * The model's default values for attributes.
@@ -46,6 +59,111 @@ class Persona extends Model
     public function cuenta(): HasOne
     {
         return $this->hasOne(User::class);
+    }
+
+    /**
+     * Todos los gafetes emitidos a la persona, del más reciente al más antiguo. Los reemplazados
+     * se conservan como historial (§4.3).
+     */
+    public function gafetes(): HasMany
+    {
+        return $this->hasMany(Gafete::class)->latest('emitido_en')->latest('id');
+    }
+
+    /**
+     * El gafete que funciona hoy. A lo sumo hay uno (§4.3); `null` si nunca se le emitió.
+     */
+    public function gafeteActivo(): HasOne
+    {
+        return $this->hasOne(Gafete::class)->where('estado', 'ACTIVO');
+    }
+
+    /**
+     * Emite un gafete nuevo y deja inactivo el anterior, si lo había (§4.3, RN-08).
+     *
+     * Todo ocurre en una transacción con la fila de la persona bloqueada: dos emisiones
+     * simultáneas (dos administrativos, un doble clic) no deben dejar dos gafetes ACTIVO.
+     *
+     * No valida el estado de la persona: el alta la crea ACTIVA, y el endpoint de emisión es
+     * quien rechaza a las personas dadas de baja.
+     */
+    public function emitirGafete(): Gafete
+    {
+        return DB::transaction(function () {
+            Persona::whereKey($this->getKey())->lockForUpdate()->first();
+
+            Gafete::where('persona_id', $this->getKey())
+                ->where('estado', 'ACTIVO')
+                ->update(['estado' => 'INACTIVO']);
+
+            return Gafete::create([
+                'persona_id' => $this->getKey(),
+                // Token opaco: no deriva del número de empleado ni de ningún dato legible, así
+                // que no se puede adivinar ni reconstruir a partir de lo impreso.
+                'qr_token' => (string) Str::ulid(),
+                'estado' => 'ACTIVO',
+                'emitido_en' => now(),
+            ]);
+        });
+    }
+
+    /**
+     * ¿Tiene una fotografía guardada? `filled` descarta NULL y la cadena vacía; comprobar el
+     * archivo cubre rutas que apuntan a algo que ya no existe.
+     */
+    public function tieneFoto(): bool
+    {
+        return filled($this->foto_path) && Storage::disk(self::DISCO_FOTOS)->exists($this->foto_path);
+    }
+
+    /**
+     * URL del API que entrega la fotografía, o null si no tiene. La ruta del archivo nunca sale
+     * del servidor. `v` cambia con cada foto nueva para que el navegador no muestre la anterior
+     * desde su caché.
+     */
+    public function urlDeFoto(): ?string
+    {
+        if (! $this->tieneFoto()) {
+            return null;
+        }
+
+        return '/api/personas/'.$this->getKey().'/foto?v='.substr(md5($this->foto_path), 0, 10);
+    }
+
+    /**
+     * Asigna o reemplaza la fotografía (§3.1).
+     *
+     * El archivo nuevo se escribe antes de tocar la base, y el anterior se borra solo cuando la
+     * transacción confirma: si algo falla, la persona conserva la foto que tenía y no queda
+     * huérfano el archivo nuevo. No toca el gafete: el QR no depende de la foto.
+     */
+    public function asignarFoto(UploadedFile $foto): void
+    {
+        $disco = Storage::disk(self::DISCO_FOTOS);
+        $anterior = $this->foto_path;
+
+        // Nombre aleatorio: la ruta no dice de quién es la foto ni se puede adivinar.
+        $nueva = $foto->storeAs(
+            'fotos/personas/'.$this->getKey(),
+            Str::ulid().'.'.$foto->extension(),
+            self::DISCO_FOTOS,
+        );
+
+        if ($nueva === false) {
+            throw new RuntimeException('No se pudo guardar la fotografía.');
+        }
+
+        try {
+            DB::transaction(fn () => $this->forceFill(['foto_path' => $nueva])->save());
+        } catch (Throwable $e) {
+            $disco->delete($nueva);
+
+            throw $e;
+        }
+
+        if (filled($anterior)) {
+            DB::afterCommit(fn () => $disco->delete($anterior));
+        }
     }
 
     /**

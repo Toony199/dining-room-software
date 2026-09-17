@@ -39,7 +39,7 @@ class PersonasController extends Controller
     public function index(Request $request): AnonymousResourceCollection
     {
         $personas = Persona::query()
-            ->with(['departamento', 'cuenta.rol'])
+            ->with(['departamento', 'cuenta.rol', 'gafeteActivo'])
             ->when($request->filled('estado'), fn ($query) => $query->where('estado', (string) $request->string('estado')->upper()))
             ->when($request->filled('departamento_id'), fn ($query) => $query->where('departamento_id', $request->integer('departamento_id')))
             ->when($request->boolean('sin_cuenta'), fn ($query) => $query->whereDoesntHave('cuenta'))
@@ -82,10 +82,16 @@ class PersonasController extends Controller
                 $persona->cuenta()->create($cuenta);
             }
 
+            // §4: toda persona registrada debe contar con un gafete generado por el sistema.
+            // Se emite dentro de la misma transacción: una persona sin gafete no podría
+            // identificarse en el kiosco ni en el comedor. Es parte del alta, así que no exige
+            // `gafetes.emitir`.
+            $persona->emitirGafete();
+
             return $persona;
         });
 
-        return (new PersonasResource($persona->load(['departamento', 'cuenta.rol'])))
+        return (new PersonasResource($persona->load(['departamento', 'cuenta.rol', 'gafeteActivo'])))
             ->response()
             ->setStatusCode(201);
     }
@@ -95,7 +101,7 @@ class PersonasController extends Controller
      */
     public function show(Persona $persona): PersonasResource
     {
-        return new PersonasResource($persona->load(['departamento', 'cuenta.rol']));
+        return new PersonasResource($persona->load(['departamento', 'cuenta.rol', 'gafeteActivo']));
     }
 
     /**
@@ -106,7 +112,7 @@ class PersonasController extends Controller
     {
         $persona->update($request->validated());
 
-        return new PersonasResource($persona->load(['departamento', 'cuenta.rol']));
+        return new PersonasResource($persona->load(['departamento', 'cuenta.rol', 'gafeteActivo']));
     }
 
     /**
@@ -135,7 +141,7 @@ class PersonasController extends Controller
 
         $persona->update(['estado' => 'INACTIVO']);
 
-        return new PersonasResource($persona->load(['departamento', 'cuenta.rol']));
+        return new PersonasResource($persona->load(['departamento', 'cuenta.rol', 'gafeteActivo']));
     }
 
     /**
@@ -145,7 +151,7 @@ class PersonasController extends Controller
     {
         $persona->update(['estado' => 'ACTIVO']);
 
-        return new PersonasResource($persona->load(['departamento', 'cuenta.rol']));
+        return new PersonasResource($persona->load(['departamento', 'cuenta.rol', 'gafeteActivo']));
     }
 
     /**
