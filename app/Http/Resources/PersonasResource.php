@@ -30,6 +30,8 @@ class PersonasResource extends JsonResource
             // Se arma en el backend para que la tabla y los reportes no repitan la
             // concatenación en cada cliente.
             'nombre_completo' => $this->nombre_completo,
+            // El que se imprime en el gafete (ver Persona::nombreGafete).
+            'nombre_gafete' => $this->nombre_gafete,
             'departamento_id' => $this->departamento_id,
             // `whenLoaded` solo incluye la clave si el query hizo with('departamento'): así
             // ningún endpoint revienta por leer una relación que no cargó.

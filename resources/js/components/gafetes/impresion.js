@@ -12,7 +12,8 @@ export const GAFETES_POR_HOJA = 9
 
 /** Props de GafeteTarjeta a partir de lo que devuelve el endpoint de impresión. */
 export const datosDeTarjeta = (impresion) => ({
-    nombre: impresion.persona.nombre_completo,
+    // Nombre y primer apellido: el QR y la foto identifican (Persona::nombreGafete).
+    nombre: impresion.persona.nombre_gafete ?? impresion.persona.nombre_completo,
     departamento: impresion.persona.departamento ?? '',
     numeroEmpleado: impresion.persona.numero_empleado,
     fotoUrl: impresion.persona.foto_url,

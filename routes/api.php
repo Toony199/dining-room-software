@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DepartamentosController;
+use App\Http\Controllers\DisenosGafeteController;
 use App\Http\Controllers\FotosPersonaController;
 use App\Http\Controllers\GafetesController;
 use App\Http\Controllers\PermisosController;
@@ -58,6 +59,18 @@ Route::middleware('auth:sanctum')->group(function () {
     // es una ruta fija y no el id de un gafete.
     Route::get('/gafetes/impresion', [GafetesController::class, 'impresionEnLote']);
     Route::get('/gafetes/{gafete}/impresion', [GafetesController::class, 'impresion']);
+
+    // Diseño del gafete (§4.1). Un solo formato para todos: se sube como borrador y se activa
+    // aparte. Ver el vigente y su fondo lo puede quien trabaja con gafetes (cualquier gafetes.*,
+    // se comprueba en el controlador); el resto es de quien diseña.
+    Route::get('/gafetes/diseno', [DisenosGafeteController::class, 'vigente']);
+    Route::get('/gafetes/disenos', [DisenosGafeteController::class, 'index'])->middleware('can:gafetes.disenar');
+    Route::post('/gafetes/disenos', [DisenosGafeteController::class, 'store'])->middleware('can:gafetes.disenar');
+    Route::get('/gafetes/disenos/plantilla', [DisenosGafeteController::class, 'plantilla'])->middleware('can:gafetes.disenar');
+    Route::get('/gafetes/disenos/predeterminado/fondo', [DisenosGafeteController::class, 'fondoPredeterminado']);
+    Route::patch('/gafetes/disenos/restablecer', [DisenosGafeteController::class, 'restablecer'])->middleware('can:gafetes.disenar');
+    Route::get('/gafetes/disenos/{diseno}/fondo', [DisenosGafeteController::class, 'fondo'])->whereNumber('diseno');
+    Route::patch('/gafetes/disenos/{diseno}/activar', [DisenosGafeteController::class, 'activar'])->whereNumber('diseno')->middleware('can:gafetes.disenar');
 
     // Fotografía de la persona (§3.1). Privada: el archivo vive fuera de public/ y solo sale por
     // aquí. Verla comprueba sus permisos en el controlador (colaboradores.ver o gafetes.*);

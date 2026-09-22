@@ -28,6 +28,7 @@ class GafeteImpresionResource extends JsonResource
             'persona' => [
                 'numero_empleado' => $this->persona->numero_empleado,
                 'nombre_completo' => $this->persona->nombre_completo,
+                'nombre_gafete' => $this->persona->nombre_gafete,
                 'departamento' => $this->persona->departamento?->nombre,
                 'foto_url' => $this->persona->urlDeFoto(),
             ],

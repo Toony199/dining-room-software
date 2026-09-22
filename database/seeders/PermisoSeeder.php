@@ -56,6 +56,8 @@ class PermisoSeeder extends Seeder
             'gafetes.ver' => 'Consultar el historial de gafetes de una persona.',
             'gafetes.emitir' => 'Emitir o reponer gafetes; el anterior deja de funcionar.',
             'gafetes.reimprimir' => 'Volver a imprimir el gafete activo de una persona.',
+            // Surge de poder cambiar el diseño desde la aplicación (analisis-diseno.md §10, punto 6).
+            'gafetes.disenar' => 'Subir y activar el diseño del gafete, que usan todos los gafetes.',
         ],
         'periodos' => [
             'periodos.ver' => 'Consultar los periodos de servicio.',

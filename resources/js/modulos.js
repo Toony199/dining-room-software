@@ -1,4 +1,4 @@
-import { KeyRound, Landmark, ShieldCheck, Users } from '@lucide/vue';
+import { KeyRound, Landmark, Palette, ShieldCheck, Users } from '@lucide/vue';
 
 /**
  * Módulos administrativos y el permiso que abre cada uno (§5.3).
@@ -37,5 +37,12 @@ export const modulos = [
         icon: KeyRound,
         permiso: 'usuarios.ver',
         descripcion: 'Cuentas de acceso a los módulos administrativos.',
+    },
+    {
+        title: 'Diseño del gafete',
+        url: '/gafetes/diseno',
+        icon: Palette,
+        permiso: 'gafetes.disenar',
+        descripcion: 'Diseño con el que se ven e imprimen todos los gafetes.',
     },
 ];

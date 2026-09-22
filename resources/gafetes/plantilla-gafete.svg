@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="54mm" height="85.6mm" viewBox="0 0 54 85.6">
+    <title>Gafete del comedor: diseño predeterminado</title>
+    <desc>
+        Plantilla del gafete: 54 × 85.6 mm, en vertical. Las unidades de este archivo son milímetros.
+
+        Los rectángulos con id zona-foto, zona-nombre, zona-departamento, zona-numero y zona-qr
+        marcan dónde pone la aplicación cada dato. Muévelos y cámbialos de tamaño como quieras, pero
+        conserva su id, déjalos derechos (sin girar) y dentro del gafete. Si tu editor los guarda como
+        trazos, también sirven: se usa el rectángulo que los encierra. El relleno de las zonas de
+        texto es el color de las letras; la transparencia solo sirve para verlas al diseñar. La zona
+        del QR debe medir al menos 20 × 20 mm y conviene dejarla sobre un fondo claro.
+
+        Convierte a curvas los textos fijos: si la computadora que imprime no tiene la tipografía,
+        saldrán con otra. La línea de corte y las esquinas redondeadas las pone la aplicación.
+    </desc>
+
+    <!-- Fondo -->
+    <rect width="54" height="85.6" fill="#ffffff"/>
+
+    <!-- Franja superior -->
+    <rect width="54" height="6" fill="#1e40af"/>
+    <text x="27" y="4.05" text-anchor="middle" font-family="Instrument Sans, Arial, sans-serif"
+          font-size="2.4" font-weight="700" letter-spacing="0.24" fill="#ffffff">COMEDOR</text>
+
+    <!-- Marco de la fotografía: es lo que se ve cuando la persona no tiene foto. -->
+    <rect x="17" y="10" width="20" height="20" rx="1.6" fill="#f5f5f5" stroke="#d4d4d4" stroke-width="0.26"/>
+
+    <!-- Zonas de los datos. La aplicación las quita del dibujo y pone el dato real encima. -->
+    <rect id="zona-foto" x="17" y="10" width="20" height="20" rx="1.6" fill="#1e40af" fill-opacity="0.25"/>
+    <rect id="zona-numero" x="3" y="36" width="48" height="4" fill="#000000" fill-opacity="0.25"/>
+    <rect id="zona-nombre" x="3" y="40.3" width="48" height="8" fill="#000000" fill-opacity="0.25"/>
+    <rect id="zona-departamento" x="3" y="48.6" width="48" height="4" fill="#525252" fill-opacity="0.25"/>
+    <rect id="zona-qr" x="16" y="59.6" width="22" height="22" fill="#1e40af" fill-opacity="0.25"/>
+</svg>

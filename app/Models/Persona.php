@@ -180,4 +180,19 @@ class Persona extends Model
             $this->segundo_apellido,
         ])));
     }
+
+    /**
+     * Nombre que se imprime en el gafete (§4.1): nombre y primer apellido. El gafete no necesita
+     * el nombre completo para identificar a nadie, eso lo hacen el QR y la foto, y así cabe en
+     * una o dos líneas sin achicarse hasta ser ilegible.
+     *
+     * @return Attribute<string, never>
+     */
+    protected function nombreGafete(): Attribute
+    {
+        return Attribute::get(fn (): string => implode(' ', array_filter([
+            $this->nombre,
+            $this->primer_apellido,
+        ])));
+    }
 }

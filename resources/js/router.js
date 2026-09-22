@@ -8,6 +8,7 @@ import DepartamentosIndex from './views/departamentos/DepartamentosIndex.vue';
 import PersonasIndex from './views/personas/PersonasIndex.vue';
 import RolesIndex from './views/roles/RolesIndex.vue';
 import UsuariosIndex from './views/usuarios/UsuariosIndex.vue';
+import DisenoGafeteIndex from './views/gafetes/DisenoGafeteIndex.vue';
 import LoginIndex from './views/auth/LoginIndex.vue';
 
 const routes = [
@@ -69,6 +70,16 @@ const routes = [
         component: UsuariosIndex,
         meta: {
             title: 'Usuarios',
+            requiresAuth: true,
+            permission: [],
+        }
+    },
+    {
+        path: '/gafetes/diseno',
+        name: 'DisenoGafeteIndex',
+        component: DisenoGafeteIndex,
+        meta: {
+            title: 'Diseño del gafete',
             requiresAuth: true,
             permission: [],
         }

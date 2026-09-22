@@ -359,7 +359,7 @@ colaboradores.ver  colaboradores.crear  colaboradores.editar  colaboradores.desa
 departamentos.ver  departamentos.crear  departamentos.editar  departamentos.desactivar
 
 # Gafetes
-gafetes.ver  gafetes.emitir  gafetes.reimprimir
+gafetes.ver  gafetes.emitir  gafetes.reimprimir  gafetes.disenar
 
 # Tarifas
 tarifas.ver  tarifas.editar
@@ -593,8 +593,14 @@ Registrar en `routes/console.php` / `Kernel` (Laravel scheduler; requiere cron d
 4. **`pagos.cancelar`**: ¿qué implica cancelar un pago ya confirmado? ¿Revierte derechos no
    utilizados? ¿Solo el mismo día? Define alcance antes de exponerlo.
 5. **Regeneración de reporte de porciones**: ¿único por periodo o versionado?
-6. **Contenido/beneficio del gafete impreso**: plantilla, logo corporativo, tamaño (§4.1). Diseño de
-   impresión pendiente (§26.16).
+6. ~~**Contenido/beneficio del gafete impreso**: plantilla, logo corporativo, tamaño (§4.1). Diseño de
+   impresión pendiente (§26.16).~~ **Decidido:** solo frente, 54 × 85.6 mm en vertical, con el nombre
+   y primer apellido (el QR y la foto identifican). El diseño es un SVG que se sube desde la
+   aplicación con `gafetes.disenar`: cinco rectángulos con id (`zona-foto`, `zona-nombre`,
+   `zona-departamento`, `zona-numero`, `zona-qr`) marcan dónde van los datos. Un diseño subido es
+   borrador hasta que se activa; hay uno solo activo para todos (§4), y sin ninguno se usa el del
+   proyecto (`resources/gafetes/plantilla-gafete.svg`). Se imprimen uno a uno o en hojas de 3 × 3.
+   Los requisitos del archivo, para quien diseña, están en [plantilla-gafete.md](plantilla-gafete.md).
 7. **Ticket** (§14): ¿impresión térmica (58/80mm) o PDF? Formato pendiente (§26.17).
 8. **Folio de ficha**: formato/secuencia (p.ej. `AAAA-Pnn-000123`).
 9. **Número de empleado**: ¿numérico o alfanumérico? Se modeló `VARCHAR(30)` por flexibilidad.

@@ -60,7 +60,7 @@ const confirmarReposicion = ref(false)
 const personaActiva = computed(() => props.persona?.estado === 'ACTIVO')
 
 const tarjeta = computed(() => ({
-    nombre: datos.value?.persona.nombre_completo ?? props.persona?.nombre_completo ?? '',
+    nombre: datos.value?.persona.nombre_gafete ?? props.persona?.nombre_gafete ?? props.persona?.nombre_completo ?? '',
     departamento: datos.value?.persona.departamento ?? props.persona?.departamento?.nombre ?? '',
     numeroEmpleado: datos.value?.persona.numero_empleado ?? props.persona?.numero_empleado ?? '',
     fotoUrl: datos.value?.persona.foto_url ?? props.persona?.foto_url ?? null,
