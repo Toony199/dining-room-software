@@ -6,7 +6,7 @@ use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 
 /**
- * Fotografía de una persona (§3.1), tomada con la cámara al emitir o reponer su gafete.
+ * Fotografía de una persona (§3.1), tomada con la cámara al darla de alta o al editarla.
  *
  * El navegador ya la entrega recortada, reducida y en WebP, así que aquí solo se comprueba que
  * sea una imagen de verdad y de tamaño razonable. Se aceptan JPG y PNG como respaldo para los

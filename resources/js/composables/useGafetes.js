@@ -79,11 +79,35 @@ export function useGafetes() {
         }
     };
 
+    /**
+     * Datos para imprimir los gafetes de varias personas en una hoja. Devuelve
+     * `{ gafetes, omitidos }`: los imprimibles en el orden del listado, y quienes quedaron fuera
+     * con su motivo (sin gafete, dada de baja). Devuelve null si falló.
+     */
+    const fetchImpresionLote = async (personaIds) => {
+        try {
+            loading.value = true;
+            // axios manda el arreglo como personas[]=1&personas[]=2, que es lo que espera Laravel.
+            const { data } = await axios.get('/api/gafetes/impresion', {
+                params: { personas: personaIds },
+            });
+
+            return { gafetes: data.data, omitidos: data.meta.omitidos };
+        } catch (error) {
+            manejarError(error, 'No se pudieron preparar los gafetes para imprimir.');
+
+            return null;
+        } finally {
+            loading.value = false;
+        }
+    };
+
     return {
         loading,
         historial,
         fetchHistorial,
         emitirGafete,
         fetchImpresion,
+        fetchImpresionLote,
     };
 }

@@ -12,7 +12,7 @@ Este archivo sirve como contexto de instrucción y referencia rápida para el de
 
 El objetivo del sistema es digitalizar la planeación, solicitud, pago físico y validación del derecho de consumo del servicio de comedor de una empresa. **La especificación funcional completa está en [`software-comedor.md`](docs/software-comedor.md)** y es la fuente de verdad del negocio: consúltala antes de implementar cualquier funcionalidad de dominio.
 
-**Estado actual:** **implementado** — personas (§3) con su fotografía (§3.1), departamentos (§3.4), roles con permisos granulares (§5), cuentas de sistema opcionales (§3.1), inicio de sesión, validación de permisos en backend en cada ruta de dominio (§5.6) y gafetes (§4): emisión, reposición, historial e impresión de uno a la vez. **Pendiente** — periodos, fichas, pagos, derechos de consumo, consumo, reportes, auditoría, el flujo de kiosco y la impresión de varios gafetes en una hoja. Las tablas de casi todo lo pendiente ya existen en `database/migrations/` (se crearon por adelantado); los modelos y endpoints no.
+**Estado actual:** **implementado** — personas (§3) con su fotografía (§3.1), departamentos (§3.4), roles con permisos granulares (§5), cuentas de sistema opcionales (§3.1), inicio de sesión, validación de permisos en backend en cada ruta de dominio (§5.6) y gafetes (§4): emisión, reposición, historial e impresión de uno o de una selección de varios en hojas de 3 × 3. **Pendiente** — periodos, fichas, pagos, derechos de consumo, consumo, reportes, auditoría y el flujo de kiosco. Las tablas de casi todo lo pendiente ya existen en `database/migrations/` (se crearon por adelantado); los modelos y endpoints no.
 
 ### Tecnologías Principales
 - **Backend:** PHP 8.3+ / Laravel 13.x

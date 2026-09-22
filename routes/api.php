@@ -54,6 +54,9 @@ Route::middleware('auth:sanctum')->group(function () {
     // en el controlador (acepta `gafetes.emitir` o `gafetes.reimprimir`).
     Route::get('/personas/{persona}/gafetes', [GafetesController::class, 'index'])->middleware('can:gafetes.ver');
     Route::post('/personas/{persona}/gafetes', [GafetesController::class, 'store'])->middleware('can:gafetes.emitir');
+    // Varios gafetes en una hoja. Va antes del de uno solo para dejar claro que `impresion` aquí
+    // es una ruta fija y no el id de un gafete.
+    Route::get('/gafetes/impresion', [GafetesController::class, 'impresionEnLote']);
     Route::get('/gafetes/{gafete}/impresion', [GafetesController::class, 'impresion']);
 
     // Fotografía de la persona (§3.1). Privada: el archivo vive fuera de public/ y solo sale por

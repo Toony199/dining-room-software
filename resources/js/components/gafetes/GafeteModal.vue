@@ -4,6 +4,7 @@ import { computed, ref, watch } from 'vue'
 import { useAuthStore } from '@/stores/auth.js'
 import { useGafetes } from '@/composables/useGafetes.js'
 import GafeteTarjeta from '@/components/gafetes/GafeteTarjeta.vue'
+import { esperarGafetes, imprimirZona } from '@/components/gafetes/impresion.js'
 
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -118,13 +119,12 @@ const solicitarEmision = () => {
     }
 }
 
-// Marca <html> solo mientras dura esta impresión, para que la hoja de estilos de abajo no afecte
-// a ninguna otra impresión de la aplicación.
-const imprimir = () => {
-    const raiz = document.documentElement
-    raiz.classList.add('imprimiendo-gafete')
-    window.addEventListener('afterprint', () => raiz.classList.remove('imprimiendo-gafete'), { once: true })
-    window.print()
+// Copia que se imprime (ver la plantilla). Antes de imprimir se espera a que tenga su QR y su foto.
+const zona = ref(null)
+
+const imprimir = async () => {
+    await esperarGafetes(zona.value, 1)
+    imprimirZona(zona.value)
 }
 
 const fecha = (valor) => (valor ? new Date(valor).toLocaleString() : '—')
@@ -230,53 +230,8 @@ const fecha = (valor) => (valor ? new Date(valor).toLocaleString() : '—')
          estilos de impresión pueda ocultar todo lo demás sin pelear con el overlay ni con las
          transformaciones del modal. -->
     <Teleport to="body">
-        <div v-if="open && datos" class="zona-impresion-gafete">
+        <div v-if="open && datos" ref="zona" class="zona-impresion-gafete zona-impresion-gafete--uno">
             <GafeteTarjeta v-bind="tarjeta" />
         </div>
     </Teleport>
 </template>
-
-<style>
-/*
- * Global a propósito: @page y el ocultado del resto de la página no pueden ser scoped. Todo se
- * condiciona a la clase que imprimir() pone en <html>, para no alterar otras impresiones.
- */
-.zona-impresion-gafete {
-    display: none;
-}
-
-/*
- * La hoja es la del papel de la impresora, con margen: si la hoja midiera lo mismo que el gafete, el
- * borde caería en la orilla, donde la impresora no imprime, y se perdería la guía de corte.
- */
-@page gafete {
-    margin: 10mm;
-}
-
-@media print {
-    html.imprimiendo-gafete body > *:not(.zona-impresion-gafete) {
-        display: none !important;
-    }
-
-    /*
-     * Centrado en la hoja: la zona ocupa la página completa y el gafete queda a la mitad, lejos de
-     * las orillas que la impresora recorta. La altura es exacta para que no se genere una segunda
-     * hoja en blanco.
-     */
-    html.imprimiendo-gafete .zona-impresion-gafete {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 100%;
-        height: 100vh;
-        margin: 0;
-        overflow: hidden;
-        page: gafete;
-    }
-
-    /* El gafete conserva su medida exacta: el centrado no lo encoge. */
-    html.imprimiendo-gafete .zona-impresion-gafete > * {
-        flex: none;
-    }
-}
-</style>

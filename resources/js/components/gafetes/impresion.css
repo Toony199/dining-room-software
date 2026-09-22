@@ -1,0 +1,50 @@
+/*
+ * Impresión de gafetes (§4.1), compartida por el gafete suelto (GafeteModal) y la hoja de varios
+ * (GafetesLoteModal).
+ *
+ * Global a propósito: @page y el ocultado del resto de la página no pueden ser scoped. Todo se
+ * condiciona a las clases que pone imprimirZona(), así que no altera ninguna otra impresión de la
+ * aplicación, ni imprime la zona de un modal que no es el que mandó a imprimir.
+ */
+.zona-impresion-gafete {
+    display: none;
+}
+
+/*
+ * La hoja es la del papel de la impresora, con margen: si la hoja midiera lo mismo que el gafete, el
+ * borde caería en la orilla, donde la impresora no imprime, y se perdería la guía de corte. Con
+ * 10 mm caben 3 × 3 gafetes tanto en carta como en A4.
+ */
+@page gafete {
+    margin: 10mm;
+}
+
+@media print {
+    html.imprimiendo-gafete body > *:not(.zona-impresion-gafete--activa) {
+        display: none !important;
+    }
+
+    html.imprimiendo-gafete .zona-impresion-gafete--activa {
+        display: block;
+        margin: 0;
+        page: gafete;
+    }
+
+    /*
+     * Un solo gafete: centrado en la hoja, lejos de las orillas que la impresora recorta. La altura
+     * es exacta para que no se genere una segunda hoja en blanco.
+     */
+    html.imprimiendo-gafete .zona-impresion-gafete--activa.zona-impresion-gafete--uno {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        height: 100vh;
+        overflow: hidden;
+    }
+
+    /* El gafete conserva su medida exacta: el centrado no lo encoge. */
+    html.imprimiendo-gafete .zona-impresion-gafete--uno > * {
+        flex: none;
+    }
+}

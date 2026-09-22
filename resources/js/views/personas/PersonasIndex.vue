@@ -1,10 +1,12 @@
 <script setup>
 import { computed, reactive, ref, onMounted, watch } from 'vue'
 import { useDebounceFn } from '@vueuse/core'
+import { toast } from 'vue-sonner'
 
 import { usePersonas } from '@/composables/usePersonas.js'
 import { useAuthStore } from '@/stores/auth.js'
 import GafeteModal from '@/components/gafetes/GafeteModal.vue'
+import GafetesLoteModal from '@/components/gafetes/GafetesLoteModal.vue'
 import CapturaFoto from '@/components/gafetes/CapturaFoto.vue'
 
 import {
@@ -26,10 +28,11 @@ import {
   TableRow,
 } from '@/components/ui/table'
 
-import { SquarePen, Plus, SearchX, Search, IdCard } from '@lucide/vue'
+import { SquarePen, Plus, SearchX, Search, IdCard, Printer, X } from '@lucide/vue'
 
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Badge } from '@/components/ui/badge'
 import { Spinner } from '@/components/ui/spinner'
 import { Input } from '@/components/ui/input'
@@ -146,6 +149,115 @@ const personaGafete = ref(null);
 const abrirGafete = (persona) => {
     personaGafete.value = persona;
     modalgafete.value = true;
+};
+
+// --- Impresión de varios gafetes en una hoja (§4.1) -------------------------
+
+// Mismo tope que el backend (ImprimirGafetesRequest::MAXIMO): unas siete hojas.
+const MAXIMO_POR_IMPRESION = 60;
+
+// id → nombre. Se conserva al cambiar de página o de filtro: lo normal es filtrar por
+// departamento e ir juntando.
+const seleccion = reactive(new Map());
+const modalLote = ref(false);
+const personasAImprimir = ref([]);
+
+/**
+ * Por qué no se puede imprimir el gafete de esta persona, o null si sí se puede. Replica las reglas
+ * del backend, que de todos modos la omite: esto solo evita seleccionarla.
+ */
+const motivoSinImpresion = (persona) => {
+    if (persona.estado !== 'ACTIVO') {
+        return 'Dada de baja: su gafete no funciona.';
+    }
+
+    if (!persona.gafete) {
+        return puede.value.emitirGafete
+            ? 'Sin gafete activo: emítelo con el ícono de gafete de esta fila.'
+            : 'Sin gafete activo.';
+    }
+
+    return null;
+};
+
+const imprimiblesDeLaPagina = computed(() => personas.value.filter((p) => !motivoSinImpresion(p)));
+
+// Casilla del encabezado: marcada si están todas las imprimibles de la página, a medias si solo
+// algunas.
+const estadoDeLaPagina = computed(() => {
+    const total = imprimiblesDeLaPagina.value.length;
+    const marcadas = imprimiblesDeLaPagina.value.filter((p) => seleccion.has(p.id)).length;
+
+    if (!total || !marcadas) {
+        return false;
+    }
+
+    return marcadas === total ? true : 'indeterminate';
+});
+
+const avisarTope = (fuera = 0) => {
+    toast.warning(`Se pueden imprimir hasta ${MAXIMO_POR_IMPRESION} gafetes a la vez.`, {
+        description: fuera
+            ? `${fuera} de esta página no se agregaron. Imprime esta selección y luego el resto.`
+            : 'Imprime esta selección y luego el resto.',
+    });
+};
+
+const alternarPersona = (persona, marcada) => {
+    if (!marcada) {
+        seleccion.delete(persona.id);
+        return;
+    }
+
+    if (seleccion.size >= MAXIMO_POR_IMPRESION) {
+        avisarTope();
+        return;
+    }
+
+    seleccion.set(persona.id, persona.nombre_completo);
+};
+
+// Solo marca las que sí se pueden imprimir; las demás tienen la casilla deshabilitada.
+const alternarPagina = (marcada) => {
+    if (marcada !== true) {
+        imprimiblesDeLaPagina.value.forEach((p) => seleccion.delete(p.id));
+        return;
+    }
+
+    let fuera = 0;
+
+    for (const persona of imprimiblesDeLaPagina.value) {
+        if (seleccion.has(persona.id)) {
+            continue;
+        }
+
+        if (seleccion.size >= MAXIMO_POR_IMPRESION) {
+            fuera++;
+            continue;
+        }
+
+        seleccion.set(persona.id, persona.nombre_completo);
+    }
+
+    if (fuera) {
+        avisarTope(fuera);
+    }
+};
+
+// Si alguien seleccionado deja de ser imprimible (se le dio de baja desde esta misma tabla), sale
+// de la selección en cuanto se recarga su fila.
+watch(personas, (lista) => {
+    for (const persona of lista) {
+        if (seleccion.has(persona.id) && motivoSinImpresion(persona)) {
+            seleccion.delete(persona.id);
+        }
+    }
+});
+
+const abrirImpresionEnLote = () => {
+    // Copia fija: lo que se siga marcando con el modal abierto no cambia la vista previa.
+    personasAImprimir.value = [...seleccion.keys()];
+    modalLote.value = true;
 };
 
 /**
@@ -462,10 +574,43 @@ onMounted(() => {
 
         <CardContent>
 
+            <div
+                v-if="puede.imprimirGafete && seleccion.size"
+                class="mb-3 flex flex-col gap-2 rounded-md border bg-stone-50 px-3 py-2 text-sm sm:flex-row sm:items-center sm:justify-between"
+            >
+                <span>
+                    <span class="font-medium">
+                        {{ seleccion.size }}
+                        {{ seleccion.size === 1 ? 'gafete seleccionado' : 'gafetes seleccionados' }}
+                    </span>
+                    <span class="text-muted-foreground">
+                        · máximo {{ MAXIMO_POR_IMPRESION }}; se conservan al cambiar de página o de filtro.
+                    </span>
+                </span>
+                <div class="flex justify-end gap-2">
+                    <Button size="sm" variant="ghost" @click="seleccion.clear()">
+                        <X />
+                        Quitar selección
+                    </Button>
+                    <Button size="sm" @click="abrirImpresionEnLote">
+                        <Printer />
+                        Imprimir gafetes ({{ seleccion.size }})
+                    </Button>
+                </div>
+            </div>
+
             <Table>
                 <TableCaption v-if="personas.length">Lista del personal registrado.</TableCaption>
                 <TableHeader class="bg-stone-50">
                     <TableRow>
+                        <TableHead v-if="puede.imprimirGafete" class="w-10 text-center">
+                            <Checkbox
+                                :model-value="estadoDeLaPagina"
+                                :disabled="!imprimiblesDeLaPagina.length"
+                                aria-label="Seleccionar los gafetes de esta página"
+                                @update:model-value="alternarPagina"
+                            />
+                        </TableHead>
                         <TableHead class="text-center font-bold">
                             No. empleado
                         </TableHead>
@@ -480,6 +625,28 @@ onMounted(() => {
                 </TableHeader>
                 <TableBody>
                     <TableRow v-for="persona in personas" :key="persona.id">
+                        <TableCell v-if="puede.imprimirGafete" class="text-center">
+                            <!-- Sin gafete o dada de baja no hay nada que imprimir: la casilla se
+                                 deshabilita y el motivo aparece al pasar el cursor. -->
+                            <Tooltip v-if="motivoSinImpresion(persona)">
+                                <TooltipTrigger as-child>
+                                    <span class="inline-flex cursor-not-allowed">
+                                        <Checkbox
+                                            :model-value="false"
+                                            disabled
+                                            :aria-label="`${persona.nombre_completo}: ${motivoSinImpresion(persona)}`"
+                                        />
+                                    </span>
+                                </TooltipTrigger>
+                                <TooltipContent>{{ motivoSinImpresion(persona) }}</TooltipContent>
+                            </Tooltip>
+                            <Checkbox
+                                v-else
+                                :model-value="seleccion.has(persona.id)"
+                                :aria-label="`Seleccionar el gafete de ${persona.nombre_completo}`"
+                                @update:model-value="(marcada) => alternarPersona(persona, marcada)"
+                            />
+                        </TableCell>
                         <TableCell class="text-center font-mono">
                             {{ persona.numero_empleado }}
                         </TableCell>
@@ -545,7 +712,7 @@ onMounted(() => {
                         </TableCell>
                     </TableRow>
                     <TableRow v-if="!personas.length">
-                        <TableCell colspan="8" class="text-center text-gray-400 p-4">
+                        <TableCell colspan="9" class="text-center text-gray-400 p-4">
                             <SearchX class="mx-auto h-10 w-10 text-gray-400" />
                             <p class="mt-2">
                                 {{ hayFiltros
@@ -834,5 +1001,7 @@ onMounted(() => {
         :persona="personaGafete"
         @actualizado="fetchPersonas()"
     />
+
+    <GafetesLoteModal v-model:open="modalLote" :personas="personasAImprimir" />
 
 </template>
