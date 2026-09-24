@@ -117,6 +117,18 @@ final class PlantillaGafete
     /** @var array<string, true> */
     private array $zonasRedibujadas = [];
 
+    private bool $fotoSinRedondeo = false;
+
+    /** @var array<string, true> */
+    private array $zonasSinColor = [];
+
+    /**
+     * Reglas de los <style> del documento, en orden: [selector, declaraciones].
+     *
+     * @var array<int, array{0: string, 1: string}>
+     */
+    private array $reglasCss = [];
+
     /**
      * @param  array<string, array{x: float, y: float, ancho: float, alto: float, color: ?string, radio: float}>  $zonas
      * @param  array<int, string>  $advertencias
@@ -139,6 +151,7 @@ final class PlantillaGafete
         $raiz = $documento->documentElement;
 
         $plantilla->limpiarElemento($raiz);
+        $plantilla->leerEstilos($documento);
         [$minX, $minY, $ancho, $alto] = $plantilla->medir($raiz);
         $plantilla->zonas = $plantilla->extraerZonas($documento, $minX, $minY, $ancho, $alto);
         $plantilla->advertencias = $plantilla->redactarAdvertencias($documento);
@@ -497,11 +510,23 @@ final class PlantillaGafete
                 'y' => round((min($y1, $y2) - $minY) * $escalaY, 2),
                 'ancho' => round(abs($x2 - $x1) * $escalaX, 2),
                 'alto' => round(abs($y2 - $y1) * $escalaY, 2),
-                'color' => self::colorDeRelleno($figura),
-                'radio' => round(abs($a) * self::radioDe($figura) * $escalaX, 2),
+                'color' => $this->colorDeRelleno($figura),
+                'radio' => round(abs($a) * $this->radioDe($figura, $x, $y, $w, $h) * $escalaX, 2),
             ];
 
             $this->comprobarLimites($id, $zona);
+
+            // Si la foto venía como trazo y no se le pudo deducir el redondeo, sale con las
+            // esquinas rectas: conviene decirlo.
+            if ($clave === 'foto' && $zona['radio'] == 0.0 && isset($this->zonasRedibujadas[$id])) {
+                $this->fotoSinRedondeo = true;
+            }
+
+            // Las zonas de la foto y del QR no llevan texto: su relleno da igual.
+            if ($zona['color'] === null && ! in_array($clave, ['foto', 'qr'], true)) {
+                $this->zonasSinColor[$id] = true;
+            }
+
             $zonas[$clave] = $zona;
 
             // El fondo no lleva las zonas: encima de ellas va el dato real.
@@ -560,16 +585,60 @@ final class PlantillaGafete
     }
 
     /**
-     * Radio de las esquinas, que solo usa la foto. Un trazo ya no lo declara: el editor lo convirtió
-     * en curvas, así que la foto queda con las esquinas rectas.
+     * Radio de las esquinas, que solo usa la foto para recortarla.
+     *
+     * Un rectángulo lo declara en `rx`. Un trazo no, pero el redondeo sigue dibujado en él: el editor
+     * lo convirtió en arcos (Illustrator, Inkscape) o en curvas (Figma), y de ahí se deduce. Así la
+     * foto conserva sus esquinas aunque el editor haya convertido la zona.
      */
-    private static function radioDe(DOMElement $figura): float
+    private function radioDe(DOMElement $figura, float $x, float $y, float $ancho, float $alto): float
     {
-        if ($figura->localName !== 'rect') {
+        if ($figura->localName === 'rect') {
+            return self::longitud($figura->getAttribute('rx') ?: $figura->getAttribute('ry') ?: '0') ?? 0.0;
+        }
+
+        if ($figura->localName !== 'path') {
             return 0.0;
         }
 
-        return self::longitud($figura->getAttribute('rx') ?: $figura->getAttribute('ry') ?: '0') ?? 0.0;
+        $radio = self::radioDelTrazo($figura->getAttribute('d'), $x, $y, $ancho, $alto);
+
+        // Un radio absurdo (la figura no era un rectángulo redondeado) se descarta en vez de
+        // deformar la foto.
+        return $radio > 0 && $radio <= min($ancho, $alto) / 2 ? $radio : 0.0;
+    }
+
+    /**
+     * Redondeo que dibuja un trazo en sus esquinas, o 0 si no se reconoce.
+     */
+    private static function radioDelTrazo(string $d, float $x, float $y, float $ancho, float $alto): float
+    {
+        // Illustrator e Inkscape dibujan la esquina con un arco, y su radio es el del redondeo.
+        if (preg_match('/[Aa]\s*(-?[\d.]+)[\s,]+(-?[\d.]+)/', $d, $arco)) {
+            [$rx, $ry] = [abs((float) $arco[1]), abs((float) $arco[2])];
+
+            if ($rx > 0 && abs($rx - $ry) < 0.01) {
+                return $rx;
+            }
+        }
+
+        // Figma usa curvas: el trazo arranca sobre un lado, a la distancia del radio desde la
+        // esquina. Se mide esa separación.
+        if (! preg_match('/^\s*[Mm]\s*(-?[\d.]+)[\s,]+(-?[\d.]+)/', $d, $inicio)) {
+            return 0.0;
+        }
+
+        [$px, $py] = [(float) $inicio[1], (float) $inicio[2]];
+        $aLosLados = min(abs($px - $x), abs($x + $ancho - $px));
+        $aArribaYAbajo = min(abs($py - $y), abs($y + $alto - $py));
+
+        // El punto de arranque está sobre un lado: pegado a un borde y separado del otro por el
+        // radio. Si no cumple eso, la figura no es un rectángulo redondeado.
+        return match (true) {
+            $aArribaYAbajo < 0.01 => $aLosLados,
+            $aLosLados < 0.01 => $aArribaYAbajo,
+            default => 0.0,
+        };
     }
 
     /**
@@ -778,18 +847,111 @@ final class PlantillaGafete
      * Color del texto: el relleno del rectángulo de la zona, sin su transparencia (en la plantilla
      * van semitransparentes para que se vean al diseñar). Null si no tiene uno legible.
      */
-    private static function colorDeRelleno(DOMElement $rect): ?string
+    private function colorDeRelleno(DOMElement $figura): ?string
     {
-        $color = trim($rect->getAttribute('fill'));
+        // Orden de la cascada: el estilo propio gana, luego lo que digan los <style> del documento
+        // (donde Illustrator deja el color al exportar con CSS interno) y al final el atributo fill.
+        foreach ([
+            self::fillDeCss($figura->getAttribute('style')),
+            $this->fillDeLasReglas($figura),
+            trim($figura->getAttribute('fill')),
+        ] as $candidato) {
+            $color = self::colorLegible((string) $candidato);
 
-        if (preg_match('/(?:^|;)\s*fill\s*:\s*([^;]+)/i', $rect->getAttribute('style'), $estilo)) {
-            $color = trim($estilo[1]);
+            if ($color !== null) {
+                return $color;
+            }
         }
 
-        return preg_match('/^(#[0-9a-f]{3}|#[0-9a-f]{6}|rgb\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}\s*\)|[a-z]{3,20})$/i', $color)
-            && ! in_array(strtolower($color), ['none', 'transparent', 'currentcolor', 'inherit'], true)
-            ? strtolower($color)
+        return null;
+    }
+
+    /**
+     * Declaración `fill` dentro de un bloque de CSS.
+     */
+    private static function fillDeCss(string $css): ?string
+    {
+        return preg_match('/(?:^|;)\s*fill\s*:\s*([^;]+)/i', $css, $coincidencia)
+            ? trim($coincidencia[1])
             : null;
+    }
+
+    /**
+     * Color que le toca a la figura por los <style> del documento. Se recorren las reglas de menos a
+     * más específica (etiqueta, clase, id) y dentro de cada grupo gana la última, que es como
+     * resuelve el navegador las hojas que escriben los editores.
+     */
+    private function fillDeLasReglas(DOMElement $figura): ?string
+    {
+        if (! $this->reglasCss) {
+            return null;
+        }
+
+        $id = $figura->getAttribute('id');
+        $clases = preg_split('/\s+/', trim($figura->getAttribute('class')), -1, PREG_SPLIT_NO_EMPTY) ?: [];
+        $porGrupo = [1 => null, 2 => null, 3 => null];
+
+        foreach ($this->reglasCss as [$selector, $declaraciones]) {
+            $grupo = match (true) {
+                $id !== '' && $selector === '#'.$id => 3,
+                $selector !== '' && $selector[0] === '.' && in_array(substr($selector, 1), $clases, true) => 2,
+                $selector === $figura->localName => 1,
+                default => 0,
+            };
+
+            if ($grupo !== 0 && ($fill = self::fillDeCss($declaraciones)) !== null) {
+                $porGrupo[$grupo] = $fill;
+            }
+        }
+
+        return $porGrupo[3] ?? $porGrupo[2] ?? $porGrupo[1];
+    }
+
+    /**
+     * Guarda las reglas de los <style> del documento. Es un CSS de editor de dibujo: selectores
+     * simples separados por comas, sin anidar.
+     */
+    private function leerEstilos(DOMDocument $documento): void
+    {
+        foreach ($documento->getElementsByTagNameNS(self::SVG_NS, 'style') as $estilo) {
+            preg_match_all('/([^{}]+)\{([^}]*)\}/', $estilo->textContent, $bloques, PREG_SET_ORDER);
+
+            foreach ($bloques as [, $selectores, $declaraciones]) {
+                foreach (explode(',', $selectores) as $selector) {
+                    $this->reglasCss[] = [trim($selector), $declaraciones];
+                }
+            }
+        }
+    }
+
+    /**
+     * Normaliza un color a algo que el navegador entienda, o null si no es un color de verdad.
+     * Se admite la transparencia que agregan algunos editores (#rrggbbaa), pero se descarta: el
+     * texto de un gafete se lee, no se difumina.
+     */
+    private static function colorLegible(string $valor): ?string
+    {
+        $color = strtolower(trim($valor));
+
+        if ($color === '' || in_array($color, ['none', 'transparent', 'currentcolor', 'inherit'], true)) {
+            return null;
+        }
+
+        if (preg_match('/^#([0-9a-f]{3}|[0-9a-f]{4}|[0-9a-f]{6}|[0-9a-f]{8})$/', $color)) {
+            // #rgba y #rrggbbaa: se quedan los dígitos del color, sin los de la transparencia.
+            return match (strlen($color)) {
+                5 => substr($color, 0, 4),
+                9 => substr($color, 0, 7),
+                default => $color,
+            };
+        }
+
+        if (preg_match('/^rgba?\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*(?:,[^)]+)?\)$/', $color, $n)) {
+            return "rgb({$n[1]}, {$n[2]}, {$n[3]})";
+        }
+
+        // Colores con nombre (red, navy…). Se descartan las funciones y las referencias url(#…).
+        return preg_match('/^[a-z]{3,20}$/', $color) ? $color : null;
     }
 
     // --- Avisos ----------------------------------------------------------------
@@ -819,11 +981,23 @@ final class PlantillaGafete
             $avisos[] = 'Se quitaron estilos que cargaban recursos externos o traían código.';
         }
 
+        if ($this->zonasSinColor) {
+            $avisos[] = 'No se pudo leer un color de relleno en '
+                .(count($this->zonasSinColor) === 1 ? 'la zona ' : 'las zonas ')
+                .implode(', ', array_keys($this->zonasSinColor))
+                .': ese texto saldrá en negro. Píntalas con un color plano (no con degradado) del color que quieras las letras.';
+        }
+
         if ($this->zonasRedibujadas) {
             $avisos[] = 'El editor guardó como trazo '.(count($this->zonasRedibujadas) === 1 ? 'la zona' : 'las zonas')
                 .' '.implode(', ', array_keys($this->zonasRedibujadas))
-                .': se usó el rectángulo que la encierra. Si era la foto, sus esquinas redondeadas se pierden;'
-                .' para conservarlas, deja esa zona como rectángulo con esquinas redondeadas.';
+                .': se usó el rectángulo que la encierra.';
+        }
+
+        if ($this->fotoSinRedondeo) {
+            $avisos[] = 'No se pudo deducir el redondeo de las esquinas de zona-foto: la fotografía saldrá'
+                .' con las esquinas rectas. Para redondearlas, deja esa zona como un rectángulo con'
+                .' esquinas redondeadas en lugar de convertirla a trazo.';
         }
 
         $textos = $documento->getElementsByTagNameNS(self::SVG_NS, 'text')->length;

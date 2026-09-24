@@ -135,6 +135,64 @@ class PlantillaGafeteTest extends TestCase
         $this->assertNull($plantilla->zonas()['numero']['color']);
     }
 
+    public function test_lee_el_color_que_illustrator_deja_en_una_clase(): void
+    {
+        // Illustrator exporta con CSS interno: el color no va en la figura, va en una clase.
+        $plantilla = $this->leer($this->svg(
+            '<style type="text/css">.st0{fill:#FFFFFF;} .st1,.st2{fill:#E63946;stroke:none}</style>',
+            $this->zonas(1, [
+                'zona-nombre' => '<rect id="zona-nombre" class="st0" x="3" y="39.5" width="48" height="8"/>',
+                'zona-departamento' => '<rect id="zona-departamento" class="st2" x="3" y="47.8" width="48" height="4"/>',
+            ]),
+        ));
+
+        $this->assertSame('#ffffff', $plantilla->zonas()['nombre']['color']);
+        $this->assertSame('#e63946', $plantilla->zonas()['departamento']['color']);
+    }
+
+    public function test_la_regla_mas_especifica_gana_y_el_estilo_propio_manda(): void
+    {
+        $plantilla = $this->leer($this->svg(
+            '<style>rect{fill:#111111} .marca{fill:#222222} #zona-numero{fill:#333333}</style>',
+            $this->zonas(1, [
+                'zona-numero' => '<rect id="zona-numero" class="marca" x="3" y="52.1" width="48" height="4"/>',
+                'zona-nombre' => '<rect id="zona-nombre" class="marca" x="3" y="39.5" width="48" height="8" style="fill:#444444"/>',
+                'zona-departamento' => '<rect id="zona-departamento" x="3" y="47.8" width="48" height="4"/>',
+            ]),
+        ));
+
+        $this->assertSame('#333333', $plantilla->zonas()['numero']['color']);
+        $this->assertSame('#444444', $plantilla->zonas()['nombre']['color']);
+        $this->assertSame('#111111', $plantilla->zonas()['departamento']['color']);
+    }
+
+    public function test_acepta_el_color_con_transparencia_que_escriben_algunos_editores(): void
+    {
+        $plantilla = $this->leer($this->svg('', $this->zonas(1, [
+            'zona-nombre' => '<rect id="zona-nombre" x="3" y="39.5" width="48" height="8" fill="#E63946FF"/>',
+            'zona-numero' => '<rect id="zona-numero" x="3" y="52.1" width="48" height="4" fill="rgba(30, 64, 175, 0.5)"/>',
+        ])));
+
+        $this->assertSame('#e63946', $plantilla->zonas()['nombre']['color']);
+        $this->assertSame('rgb(30, 64, 175)', $plantilla->zonas()['numero']['color']);
+    }
+
+    public function test_avisa_cuando_una_zona_de_texto_se_queda_sin_color(): void
+    {
+        // Un degradado no da un color de letra: más vale decirlo que imprimir en negro sin avisar.
+        $plantilla = $this->leer($this->svg(
+            '<defs><linearGradient id="g"><stop offset="0" stop-color="#000"/></linearGradient></defs>',
+            $this->zonas(1, [
+                'zona-nombre' => '<rect id="zona-nombre" x="3" y="39.5" width="48" height="8" fill="url(#g)"/>',
+            ]),
+        ));
+
+        $this->assertNull($plantilla->zonas()['nombre']['color']);
+        $this->assertStringContainsString('No se pudo leer un color de relleno en la zona zona-nombre', implode(' ', $plantilla->advertencias()));
+        // La foto y el QR no llevan texto: que no tengan relleno no se avisa.
+        $this->assertStringNotContainsString('zona-qr', implode(' ', $plantilla->advertencias()));
+    }
+
     public function test_quita_las_zonas_del_fondo_y_lo_estira_al_gafete(): void
     {
         $svg = $this->leer($this->svg('<rect width="54" height="85.6" fill="#eee"/>'))->svg();
@@ -217,9 +275,30 @@ class PlantillaGafeteTest extends TestCase
         $this->assertEqualsWithDelta(20.0, $foto['ancho'], 0.05);
         $this->assertEqualsWithDelta(20.0, $foto['alto'], 0.05);
         $this->assertSame('#1e40af', $foto['color']);
-        // El trazo ya no declara el redondeo: la foto queda con las esquinas rectas y se avisa.
-        $this->assertSame(0.0, $foto['radio']);
+        // El redondeo sigue dibujado en las curvas del trazo: se deduce de ahí (1.6 mm).
+        $this->assertEqualsWithDelta(1.6, $foto['radio'], 0.05);
         $this->assertStringContainsString('guardó como trazo la zona zona-foto', implode(' ', $plantilla->advertencias()));
+    }
+
+    public function test_deduce_el_redondeo_del_trazo_con_arcos(): void
+    {
+        $arcos = '<path id="zona-foto" d="M18.6,10h16.8c0.9,0,1.6,0.7,1.6,1.6v16.8c0,0.9-0.7,1.6-1.6,1.6H18.6'
+            .'c-0.9,0-1.6-0.7-1.6-1.6V11.6C17,10.7,17.7,10,18.6,10z"/>';
+
+        $foto = $this->leer($this->svg('', $this->zonas(1, ['zona-foto' => $arcos])))->zonas()['foto'];
+
+        $this->assertEqualsWithDelta(1.6, $foto['radio'], 0.05);
+    }
+
+    public function test_avisa_si_la_foto_se_queda_sin_redondeo(): void
+    {
+        // Un trazo de esquinas rectas no tiene redondeo que deducir: la foto sale cuadrada.
+        $recto = '<path id="zona-foto" d="M17 10H37V30H17Z"/>';
+
+        $plantilla = $this->leer($this->svg('', $this->zonas(1, ['zona-foto' => $recto])));
+
+        $this->assertSame(0.0, $plantilla->zonas()['foto']['radio']);
+        $this->assertStringContainsString('redondeo de las esquinas de zona-foto', implode(' ', $plantilla->advertencias()));
     }
 
     public function test_acepta_el_trazo_con_arcos_que_exporta_illustrator(): void

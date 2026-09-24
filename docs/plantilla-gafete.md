@@ -51,8 +51,8 @@ fijo son los cinco id y las reglas de abajo.
 | Sin **rotar ni inclinar** | Los datos se colocan derechos; una zona girada no cuadraría con el texto |
 | Completamente **dentro del gafete** | Lo que se sale del lienzo no se imprime (se admiten 0.5 mm de redondeo) |
 | `zona-qr` de **20 × 20 mm** como mínimo | Más chico, los lectores del kiosco y del comedor fallan |
-| El **relleno** de la zona es el color de las letras | Se pinta del color que se quieren las letras; sin relleno salen en negro |
-| Las **esquinas redondeadas** de `zona-foto` se respetan | La fotografía se recorta con ese mismo redondeo. Solo se conservan si la zona sigue siendo un rectángulo: un trazo ya no las declara |
+| El **relleno** de la zona es el color de las letras | Se pinta del color que se quieren las letras. Sirve puesto como relleno, en el estilo o en una clase CSS, con o sin transparencia. Un degradado no: de ahí no sale un color de letra, y el texto saldría en negro |
+| Las **esquinas redondeadas** de `zona-foto` se respetan | La fotografía se recorta con ese mismo redondeo. Si el editor guardó la zona como trazo, el redondeo se deduce de sus curvas; solo se pierde si el trazo ya no lo dibuja, y entonces se avisa |
 | El **alto** de la zona manda el tamaño de la letra | Una zona de 4 mm da letras de ~3.5 mm (10 pt). Si el texto no cabe, se achica solo hasta un 45 % |
 
 `zona-nombre` admite dos líneas; las otras tres, una. La fotografía se toma en proporción 3:4 y se

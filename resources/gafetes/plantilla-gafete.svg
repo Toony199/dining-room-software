@@ -8,7 +8,8 @@
         marcan dónde pone la aplicación cada dato. Muévelos y cámbialos de tamaño como quieras, pero
         conserva su id, déjalos derechos (sin girar) y dentro del gafete. Si tu editor los guarda como
         trazos, también sirven: se usa el rectángulo que los encierra. El relleno de las zonas de
-        texto es el color de las letras; la transparencia solo sirve para verlas al diseñar. La zona
+        texto es el color de las letras (un color plano, no un degradado); la transparencia solo sirve
+        para verlas al diseñar. La zona
         del QR debe medir al menos 20 × 20 mm y conviene dejarla sobre un fondo claro.
 
         Convierte a curvas los textos fijos: si la computadora que imprime no tiene la tipografía,
