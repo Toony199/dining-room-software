@@ -5,6 +5,7 @@ use App\Http\Controllers\DepartamentosController;
 use App\Http\Controllers\DisenosGafeteController;
 use App\Http\Controllers\FotosPersonaController;
 use App\Http\Controllers\GafetesController;
+use App\Http\Controllers\PeriodosController;
 use App\Http\Controllers\PermisosController;
 use App\Http\Controllers\PersonasController;
 use App\Http\Controllers\RolesController;
@@ -85,6 +86,20 @@ Route::middleware('auth:sanctum')->group(function () {
     // Va ANTES de cualquier /tarifas/{tarifa} por el route binding.
     Route::get('/tarifas/vigente', [TarifasController::class, 'vigente'])->middleware('can:tarifas.ver');
     Route::post('/tarifas', [TarifasController::class, 'store'])->middleware('can:tarifas.editar');
+
+    // Periodos de servicio (§6, §8, §9). Sin DELETE: el periodo guarda el precio con el que se
+    // cobró cada día. Cada transición de estado tiene su permiso.
+    Route::get('/periodos', [PeriodosController::class, 'index'])->middleware('can:periodos.ver');
+    Route::post('/periodos', [PeriodosController::class, 'store'])->middleware('can:periodos.crear');
+    // Va ANTES de /periodos/{periodo} por el route binding: si no, buscaría el periodo
+    // "generar-siguiente" y respondería 404.
+    Route::post('/periodos/generar-siguiente', [PeriodosController::class, 'generarSiguiente'])->middleware('can:periodos.crear');
+    Route::get('/periodos/{periodo}', [PeriodosController::class, 'show'])->middleware('can:periodos.ver');
+    Route::put('/periodos/{periodo}', [PeriodosController::class, 'update'])->middleware('can:periodos.editar');
+    Route::put('/periodos/{periodo}/dias/{dia}', [PeriodosController::class, 'actualizarDia'])->middleware('can:periodos.editar');
+    Route::patch('/periodos/{periodo}/abrir', [PeriodosController::class, 'abrir'])->middleware('can:periodos.abrir');
+    Route::patch('/periodos/{periodo}/cerrar', [PeriodosController::class, 'cerrar'])->middleware('can:periodos.cerrar');
+    Route::patch('/periodos/{periodo}/reabrir', [PeriodosController::class, 'reabrir'])->middleware('can:periodos.reabrir');
 
     // Roles (§5.2). Sin DELETE: un rol se desactiva (§5.5).
     Route::get('/roles', [RolesController::class, 'index'])->middleware('can:roles.ver');

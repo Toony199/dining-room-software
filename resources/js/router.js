@@ -10,6 +10,7 @@ import RolesIndex from './views/roles/RolesIndex.vue';
 import UsuariosIndex from './views/usuarios/UsuariosIndex.vue';
 import DisenoGafeteIndex from './views/gafetes/DisenoGafeteIndex.vue';
 import TarifasIndex from './views/tarifas/TarifasIndex.vue';
+import PeriodosIndex from './views/periodos/PeriodosIndex.vue';
 import LoginIndex from './views/auth/LoginIndex.vue';
 
 const routes = [
@@ -71,6 +72,16 @@ const routes = [
         component: UsuariosIndex,
         meta: {
             title: 'Usuarios',
+            requiresAuth: true,
+            permission: [],
+        }
+    },
+    {
+        path: '/periodos',
+        name: 'PeriodosIndex',
+        component: PeriodosIndex,
+        meta: {
+            title: 'Periodos',
             requiresAuth: true,
             permission: [],
         }

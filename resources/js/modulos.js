@@ -1,4 +1,4 @@
-import { Coins, KeyRound, Landmark, Palette, ShieldCheck, Users } from '@lucide/vue';
+import { CalendarRange, Coins, KeyRound, Landmark, Palette, ShieldCheck, Users } from '@lucide/vue';
 
 /**
  * Módulos administrativos y el permiso que abre cada uno (§5.3).
@@ -37,6 +37,13 @@ export const modulos = [
         icon: KeyRound,
         permiso: 'usuarios.ver',
         descripcion: 'Cuentas de acceso a los módulos administrativos.',
+    },
+    {
+        title: 'Periodos',
+        url: '/periodos',
+        icon: CalendarRange,
+        permiso: 'periodos.ver',
+        descripcion: 'Semanas de servicio, sus días y la ventana para generar fichas y pagar.',
     },
     {
         title: 'Precio del comedor',
