@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
 
+import AyudaCampo from '@/components/AyudaCampo.vue'
 import { usePeriodos } from '@/composables/usePeriodos.js'
 import { useTarifas } from '@/composables/useTarifas.js'
 import { useAuthStore } from '@/stores/auth.js'
@@ -97,6 +98,17 @@ const puede = computed(() => ({
     reabrir: auth.tienePermiso('periodos.reabrir'),
 }))
 
+// Explicaciones de los campos del formulario. Van juntas para que digan lo mismo en el alta y en
+// la configuración del periodo.
+const AYUDA = {
+    servicio: 'Los días en que habrá comida. Es la semana que el colaborador podrá elegir en su ficha; normalmente, de lunes a viernes.',
+    ventana: 'Días en que los colaboradores generan su ficha en el kiosco y pasan a pagar. Normalmente, la semana anterior al servicio: así, cuando llega el lunes, la cocina ya sabe cuántas porciones hacer. Fuera de estos días no se puede generar ni pagar, aunque el periodo siga abierto.',
+    dias: 'Cada día lleva su propio estado y su precio. Un día sin servicio no se puede elegir, no se cobra y no cuenta para la proyección de porciones.',
+    conServicio: 'Apagado, ese día no habrá comida y nadie podrá elegirlo.',
+    festivo: 'Marca que ese día no hay servicio por ser festivo. Solo aplica a los días sin servicio.',
+    precio: 'Precio de ese día, copiado del catálogo al crear el periodo. Se puede ajustar mientras esté en borrador, y es el que quedará guardado como cobrado.',
+}
+
 const ESTADOS = {
     BORRADOR: { texto: 'Borrador', variante: 'secondary', clase: '' },
     ABIERTO: { texto: 'Abierto', variante: 'default', clase: 'bg-green-600' },
@@ -114,6 +126,10 @@ const aFecha = (valor) => {
 }
 
 const fecha = (valor) => (valor ? aFecha(valor).toLocaleDateString('es-MX', { day: '2-digit', month: 'short' }) : '—')
+
+const fechaLarga = (valor) => (valor
+    ? aFecha(valor).toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' })
+    : '')
 
 const rango = (desde, hasta) => (desde && hasta
     ? `${fecha(desde)} – ${fecha(hasta)} ${aFecha(hasta).getFullYear()}`
@@ -229,6 +245,23 @@ const confirmarCambio = async () => {
         cargarDetalle(datos)
     }
 }
+
+// Cerrar antes de que termine la ventana es legítimo —sirve para mandar el conteo a la cocina en
+// cuanto ya pasaron todos—, pero deja fuera a quien pensaba pagar en los días que faltan. Se dice
+// con las fechas a la vista en vez de dejarlo a la memoria de quien cierra.
+const avisoDeCierreAnticipado = computed(() => {
+    const fila = confirmacion.periodo
+
+    if (!fila || fila.ventana_vencida) {
+        return ''
+    }
+
+    const empezo = fila.ventana_vigente
+
+    return empezo
+        ? `La ventana sigue corriendo hasta el ${fechaLarga(fila.ventana_fin)}: si cierras ahora, nadie podrá pedir ni pagar en los días que faltan.`
+        : `La ventana ni siquiera ha empezado (va del ${fechaLarga(fila.ventana_inicio)} al ${fechaLarga(fila.ventana_fin)}): si cierras ahora, nadie podrá pedir ni pagar este periodo.`
+})
 
 const TEXTOS_CONFIRMACION = {
     abrir: {
@@ -348,7 +381,7 @@ onMounted(() => {
                 <TableHeader class="bg-stone-50">
                     <TableRow>
                         <TableHead class="text-center font-bold">Servicio</TableHead>
-                        <TableHead class="text-center font-bold">Ventana</TableHead>
+                        <TableHead class="text-center font-bold">Se pide y se paga</TableHead>
                         <TableHead class="text-center font-bold">Días con servicio</TableHead>
                         <TableHead class="text-center font-bold">Estado</TableHead>
                         <TableHead class="text-center font-bold">Acciones</TableHead>
@@ -475,10 +508,13 @@ onMounted(() => {
 
             <div v-if="periodo" class="grid gap-5">
                 <div class="grid gap-3 rounded-md border p-3">
-                    <Label>Ventana para generar fichas y pagar</Label>
+                    <div class="flex items-center gap-1.5">
+                        <Label>Se pide y se paga</Label>
+                        <AyudaCampo :texto="AYUDA.ventana" campo="la ventana para pedir y pagar" />
+                    </div>
                     <div class="flex flex-wrap items-end gap-3">
                         <div class="grid gap-1">
-                            <span class="text-xs text-muted-foreground">Desde</span>
+                            <span class="text-xs text-muted-foreground">Del</span>
                             <Input
                                 v-model="ventana.ventana_inicio"
                                 type="date"
@@ -486,7 +522,7 @@ onMounted(() => {
                             />
                         </div>
                         <div class="grid gap-1">
-                            <span class="text-xs text-muted-foreground">Hasta</span>
+                            <span class="text-xs text-muted-foreground">Al</span>
                             <Input
                                 v-model="ventana.ventana_fin"
                                 type="date"
@@ -505,12 +541,16 @@ onMounted(() => {
                     <p v-if="errores.ventana_inicio" class="text-sm text-red-600">{{ errores.ventana_inicio[0] }}</p>
                     <p v-if="errores.ventana_fin" class="text-sm text-red-600">{{ errores.ventana_fin[0] }}</p>
                     <p class="text-xs text-muted-foreground">
-                        Puede ir antes del periodo, que es lo normal aquí, o dentro de él.
+                        Son los días para pedir y pagar, no los días de comida. Pueden ir antes del
+                        periodo, que es lo normal, o dentro de él.
                     </p>
                 </div>
 
                 <div class="grid gap-2">
-                    <Label>Días</Label>
+                    <div class="flex items-center gap-1.5">
+                        <Label>Días de servicio</Label>
+                        <AyudaCampo :texto="AYUDA.dias" campo="los días del periodo" />
+                    </div>
                     <div class="grid gap-2">
                         <div
                             v-for="dia in dias"
@@ -522,22 +562,28 @@ onMounted(() => {
                                 <p class="text-xs text-muted-foreground">{{ fecha(dia.fecha) }}</p>
                             </div>
 
-                            <label class="flex items-center gap-2 text-sm">
-                                <Switch
-                                    :model-value="dia.disponible"
-                                    :disabled="!esBorrador || !puede.editar"
-                                    @update:model-value="(valor) => alCambiarDisponible(dia, valor)"
-                                />
-                                Servicio
-                            </label>
+                            <div class="flex items-center gap-1.5 text-sm">
+                                <label class="flex items-center gap-2">
+                                    <Switch
+                                        :model-value="dia.disponible"
+                                        :disabled="!esBorrador || !puede.editar"
+                                        @update:model-value="(valor) => alCambiarDisponible(dia, valor)"
+                                    />
+                                    Hay comida
+                                </label>
+                                <AyudaCampo :texto="AYUDA.conServicio" campo="el servicio del día" />
+                            </div>
 
-                            <label class="flex items-center gap-2 text-sm">
-                                <Switch
-                                    v-model="dia.es_festivo"
-                                    :disabled="!esBorrador || !puede.editar || dia.disponible"
-                                />
-                                Festivo
-                            </label>
+                            <div class="flex items-center gap-1.5 text-sm">
+                                <label class="flex items-center gap-2">
+                                    <Switch
+                                        v-model="dia.es_festivo"
+                                        :disabled="!esBorrador || !puede.editar || dia.disponible"
+                                    />
+                                    Festivo
+                                </label>
+                                <AyudaCampo :texto="AYUDA.festivo" campo="el día festivo" />
+                            </div>
 
                             <Input
                                 v-if="!dia.disponible"
@@ -551,6 +597,11 @@ onMounted(() => {
                             </span>
 
                             <div class="flex items-center gap-2">
+                                <AyudaCampo
+                                    v-if="esBorrador && puede.editar"
+                                    :texto="AYUDA.precio"
+                                    campo="el precio del día"
+                                />
                                 <Input
                                     v-if="esBorrador && puede.editar"
                                     v-model="dia.precio_aplicado"
@@ -615,25 +666,47 @@ onMounted(() => {
                     </DialogDescription>
                 </DialogHeader>
 
-                <div class="grid gap-4 py-4 sm:grid-cols-2">
+                <div class="grid gap-5 py-4">
                     <div class="grid gap-2">
-                        <Label for="fecha_inicio">Primer día</Label>
-                        <Input id="fecha_inicio" v-model="form.fecha_inicio" type="date" />
+                        <div class="flex items-center gap-1.5">
+                            <Label for="fecha_inicio">Servicio</Label>
+                            <AyudaCampo :texto="AYUDA.servicio" campo="los días de servicio" />
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="grid gap-1">
+                                <span class="text-xs text-muted-foreground">Del</span>
+                                <Input id="fecha_inicio" v-model="form.fecha_inicio" type="date" />
+                            </div>
+                            <div class="grid gap-1">
+                                <span class="text-xs text-muted-foreground">Al</span>
+                                <Input id="fecha_fin" v-model="form.fecha_fin" type="date" />
+                            </div>
+                        </div>
+                        <p class="text-xs text-muted-foreground">Los días en que habrá comida.</p>
                         <p v-if="errores.fecha_inicio" class="text-sm text-red-600">{{ errores.fecha_inicio[0] }}</p>
-                    </div>
-                    <div class="grid gap-2">
-                        <Label for="fecha_fin">Último día</Label>
-                        <Input id="fecha_fin" v-model="form.fecha_fin" type="date" />
                         <p v-if="errores.fecha_fin" class="text-sm text-red-600">{{ errores.fecha_fin[0] }}</p>
                     </div>
+
                     <div class="grid gap-2">
-                        <Label for="ventana_inicio">Ventana desde</Label>
-                        <Input id="ventana_inicio" v-model="form.ventana_inicio" type="date" />
+                        <div class="flex items-center gap-1.5">
+                            <Label for="ventana_inicio">Se pide y se paga</Label>
+                            <AyudaCampo :texto="AYUDA.ventana" campo="la ventana para pedir y pagar" />
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="grid gap-1">
+                                <span class="text-xs text-muted-foreground">Del</span>
+                                <Input id="ventana_inicio" v-model="form.ventana_inicio" type="date" />
+                            </div>
+                            <div class="grid gap-1">
+                                <span class="text-xs text-muted-foreground">Al</span>
+                                <Input id="ventana_fin" v-model="form.ventana_fin" type="date" />
+                            </div>
+                        </div>
+                        <p class="text-xs text-muted-foreground">
+                            Días en que los colaboradores generan su ficha y pasan a pagar. Normalmente,
+                            la semana anterior al servicio.
+                        </p>
                         <p v-if="errores.ventana_inicio" class="text-sm text-red-600">{{ errores.ventana_inicio[0] }}</p>
-                    </div>
-                    <div class="grid gap-2">
-                        <Label for="ventana_fin">Ventana hasta</Label>
-                        <Input id="ventana_fin" v-model="form.ventana_fin" type="date" />
                         <p v-if="errores.ventana_fin" class="text-sm text-red-600">{{ errores.ventana_fin[0] }}</p>
                     </div>
                 </div>
@@ -653,6 +726,13 @@ onMounted(() => {
                 <AlertDialogDescription>
                     {{ TEXTOS_CONFIRMACION[confirmacion.accion].cuerpo }}
                 </AlertDialogDescription>
+                <div
+                    v-if="confirmacion.accion === 'cerrar' && avisoDeCierreAnticipado"
+                    class="flex gap-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900"
+                >
+                    <TriangleAlert class="mt-0.5 h-4 w-4 shrink-0" />
+                    <span>{{ avisoDeCierreAnticipado }}</span>
+                </div>
             </AlertDialogHeader>
             <AlertDialogFooter>
                 <AlertDialogCancel>Cancelar</AlertDialogCancel>
