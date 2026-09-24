@@ -9,6 +9,7 @@ import PersonasIndex from './views/personas/PersonasIndex.vue';
 import RolesIndex from './views/roles/RolesIndex.vue';
 import UsuariosIndex from './views/usuarios/UsuariosIndex.vue';
 import DisenoGafeteIndex from './views/gafetes/DisenoGafeteIndex.vue';
+import TarifasIndex from './views/tarifas/TarifasIndex.vue';
 import LoginIndex from './views/auth/LoginIndex.vue';
 
 const routes = [
@@ -70,6 +71,16 @@ const routes = [
         component: UsuariosIndex,
         meta: {
             title: 'Usuarios',
+            requiresAuth: true,
+            permission: [],
+        }
+    },
+    {
+        path: '/tarifas',
+        name: 'TarifasIndex',
+        component: TarifasIndex,
+        meta: {
+            title: 'Precio del comedor',
             requiresAuth: true,
             permission: [],
         }

@@ -8,6 +8,7 @@ use App\Http\Controllers\GafetesController;
 use App\Http\Controllers\PermisosController;
 use App\Http\Controllers\PersonasController;
 use App\Http\Controllers\RolesController;
+use App\Http\Controllers\TarifasController;
 use App\Http\Controllers\UsuariosController;
 use Illuminate\Support\Facades\Route;
 
@@ -77,6 +78,13 @@ Route::middleware('auth:sanctum')->group(function () {
     // tomarla o cambiarla es editar a la persona.
     Route::get('/personas/{persona}/foto', [FotosPersonaController::class, 'show']);
     Route::post('/personas/{persona}/foto', [FotosPersonaController::class, 'store'])->middleware('can:colaboradores.editar');
+
+    // Tarifas (§6.4, §18). Solo alta y consulta: el precio es histórico y no se edita ni se
+    // borra; cambiarlo es registrar otro, y el anterior queda cerrado el día previo (§6.5).
+    Route::get('/tarifas', [TarifasController::class, 'index'])->middleware('can:tarifas.ver');
+    // Va ANTES de cualquier /tarifas/{tarifa} por el route binding.
+    Route::get('/tarifas/vigente', [TarifasController::class, 'vigente'])->middleware('can:tarifas.ver');
+    Route::post('/tarifas', [TarifasController::class, 'store'])->middleware('can:tarifas.editar');
 
     // Roles (§5.2). Sin DELETE: un rol se desactiva (§5.5).
     Route::get('/roles', [RolesController::class, 'index'])->middleware('can:roles.ver');

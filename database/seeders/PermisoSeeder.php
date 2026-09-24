@@ -59,6 +59,12 @@ class PermisoSeeder extends Seeder
             // Surge de poder cambiar el diseño desde la aplicación (analisis-diseno.md §10, punto 6).
             'gafetes.disenar' => 'Subir y activar el diseño del gafete, que usan todos los gafetes.',
         ],
+        // El catálogo de docs/analisis-diseno.md §4 los incluye; el precio por día es su propio
+        // módulo (§18), separado de periodos: se consulta desde varios lados y se cambia poco.
+        'tarifas' => [
+            'tarifas.ver' => 'Consultar el precio por día y su historial.',
+            'tarifas.editar' => 'Registrar un precio por día nuevo.',
+        ],
         'periodos' => [
             'periodos.ver' => 'Consultar los periodos de servicio.',
             'periodos.crear' => 'Crear periodos de servicio.',

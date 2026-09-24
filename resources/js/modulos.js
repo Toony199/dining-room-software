@@ -1,4 +1,4 @@
-import { KeyRound, Landmark, Palette, ShieldCheck, Users } from '@lucide/vue';
+import { Coins, KeyRound, Landmark, Palette, ShieldCheck, Users } from '@lucide/vue';
 
 /**
  * Módulos administrativos y el permiso que abre cada uno (§5.3).
@@ -37,6 +37,13 @@ export const modulos = [
         icon: KeyRound,
         permiso: 'usuarios.ver',
         descripcion: 'Cuentas de acceso a los módulos administrativos.',
+    },
+    {
+        title: 'Precio del comedor',
+        url: '/tarifas',
+        icon: Coins,
+        permiso: 'tarifas.ver',
+        descripcion: 'Precio por día con el que se arman los periodos de servicio.',
     },
     {
         title: 'Diseño del gafete',

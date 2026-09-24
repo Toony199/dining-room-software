@@ -48,6 +48,8 @@ class RolSeeder extends Seeder
                 'periodos.abrir',
                 'periodos.cerrar',
                 'periodos.reabrir',
+                'tarifas.ver',
+                'tarifas.editar',
                 'colaboradores.ver',
                 'departamentos.ver',
             ],
