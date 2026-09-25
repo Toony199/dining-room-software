@@ -8,6 +8,7 @@ use App\Models\Tarifa;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use RuntimeException;
 
 /**
  * Catálogo de precios por día (§6.4, §18).
@@ -49,6 +50,26 @@ class TarifasController extends Controller
         return response()->json([
             'data' => $tarifa ? new TarifaResource($tarifa) : null,
         ]);
+    }
+
+    /**
+     * Cancela un precio programado que todavía no entra en vigor.
+     *
+     * Es la única operación del catálogo que borra: un precio que nunca rigió no es historia de
+     * nada. Los que ya rigieron se conservan siempre, porque respaldan lo cobrado (§6.5).
+     */
+    public function destroy(Tarifa $tarifa): JsonResponse
+    {
+        try {
+            $tarifa->cancelar();
+        } catch (RuntimeException $e) {
+            return response()->json([
+                'message' => $e->getMessage(),
+                'errors' => ['tarifa' => [$e->getMessage()]],
+            ], 422);
+        }
+
+        return response()->json(['message' => 'Se canceló el precio programado.']);
     }
 
     /**

@@ -2,9 +2,7 @@
 
 namespace App\Http\Requests;
 
-use App\Models\Tarifa;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Validator;
 
 /**
  * Alta de un precio por día (§6.4, §18).
@@ -32,30 +30,6 @@ class TarifaRequest extends FormRequest
             // Se admite programar un precio para más adelante, pero no cambiar el pasado: lo que
             // ya se cobró quedó congelado en los días de cada periodo (§6.5).
             'vigente_desde' => ['required', 'date_format:Y-m-d', 'after_or_equal:today'],
-        ];
-    }
-
-    /**
-     * La tarifa nueva tiene que empezar después de la última registrada; si no, habría dos precios
-     * para el mismo día y dejaría de saberse cuál rige.
-     */
-    public function after(): array
-    {
-        return [
-            function (Validator $validador) {
-                $ultima = Tarifa::ultima();
-
-                if (! $ultima || ! $this->filled('vigente_desde')) {
-                    return;
-                }
-
-                if (! $ultima->vigente_desde->lt($this->date('vigente_desde'))) {
-                    $validador->errors()->add('vigente_desde', sprintf(
-                        'La tarifa vigente empezó el %s: la nueva debe empezar después.',
-                        $ultima->vigente_desde->format('d/m/Y'),
-                    ));
-                }
-            },
         ];
     }
 

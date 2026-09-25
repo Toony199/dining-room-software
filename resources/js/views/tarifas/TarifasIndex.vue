@@ -41,7 +41,17 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Plus, SearchX, TriangleAlert } from '@lucide/vue'
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import { Plus, SearchX, TriangleAlert, X } from '@lucide/vue'
 
 /**
  * Precio por día del comedor (§6.4, §18).
@@ -59,6 +69,7 @@ const {
     fetchTarifas,
     fetchVigente,
     createTarifa,
+    cancelarTarifa,
     limpiarErrores,
 } = useTarifas()
 
@@ -80,6 +91,16 @@ const abrirModal = () => {
 }
 
 const esProgramada = computed(() => form.vigente_desde > hoy)
+
+// Cambiar el precio el mismo día en que empezó el actual lo reemplaza: es el ajuste de emergencia.
+const reemplazaElDeHoy = computed(
+    () => form.vigente_desde === hoy && vigente.value?.vigente_desde?.slice(0, 10) === hoy
+)
+
+// Si ya hay un precio programado más adelante, el nuevo rige solo hasta que aquel entre.
+const siguienteProgramada = computed(() => tarifas.value
+    .filter((tarifa) => (tarifa.vigente_desde ?? '') > form.vigente_desde)
+    .sort((a, b) => a.vigente_desde.localeCompare(b.vigente_desde))[0] ?? null)
 
 const guardar = async () => {
     const creada = await createTarifa({ precio: form.precio, vigente_desde: form.vigente_desde })
@@ -107,6 +128,21 @@ const fecha = (valor) => {
     const [anio, mes, dia] = valor.slice(0, 10).split('-')
 
     return `${dia}/${mes}/${anio}`
+}
+
+// --- Cancelar un precio programado ---------------------------------------------------
+
+const confirmarCancelacion = ref(false)
+const porCancelar = ref(null)
+
+const pedirCancelacion = (tarifa) => {
+    porCancelar.value = tarifa
+    confirmarCancelacion.value = true
+}
+
+const cancelarConfirmado = async () => {
+    confirmarCancelacion.value = false
+    await cancelarTarifa(porCancelar.value)
 }
 
 const estado = (tarifa) => {
@@ -145,7 +181,7 @@ onMounted(() => {
                 <div class="flex justify-end">
                     <Button v-if="puedeEditar" @click="abrirModal">
                         <Plus />
-                        Registrar precio
+                        {{ vigente ? 'Cambiar precio' : 'Registrar precio' }}
                     </Button>
                 </div>
             </div>
@@ -192,6 +228,7 @@ onMounted(() => {
                         <TableHead class="text-center font-bold">Hasta</TableHead>
                         <TableHead class="text-center font-bold">Estado</TableHead>
                         <TableHead class="text-center font-bold">Registrado por</TableHead>
+                        <TableHead v-if="puedeEditar" class="text-center font-bold">Acciones</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -210,9 +247,22 @@ onMounted(() => {
                             </Badge>
                         </TableCell>
                         <TableCell class="text-center">{{ tarifa.creado_por ?? '—' }}</TableCell>
+                        <TableCell v-if="puedeEditar" class="text-center">
+                            <!-- Solo los programados: los que ya rigieron respaldan lo cobrado. -->
+                            <Button
+                                v-if="tarifa.programada"
+                                size="sm"
+                                variant="ghost"
+                                :disabled="loading"
+                                @click="pedirCancelacion(tarifa)"
+                            >
+                                <X />
+                                Cancelar
+                            </Button>
+                        </TableCell>
                     </TableRow>
                     <TableRow v-if="!tarifas.length">
-                        <TableCell colspan="5" class="p-4 text-center text-gray-400">
+                        <TableCell colspan="6" class="p-4 text-center text-gray-400">
                             <SearchX class="mx-auto h-10 w-10 text-gray-400" />
                             <p class="mt-2">Aún no se ha registrado ningún precio.</p>
                         </TableCell>
@@ -255,14 +305,35 @@ onMounted(() => {
         </CardFooter>
     </Card>
 
+    <AlertDialog v-model:open="confirmarCancelacion">
+        <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitle>¿Cancelar el precio programado?</AlertDialogTitle>
+                <AlertDialogDescription>
+                    El precio de
+                    <span class="font-medium">{{ dinero(porCancelar?.precio) }}</span>
+                    que iba a entrar el {{ fecha(porCancelar?.vigente_desde) }} se elimina, y el
+                    precio anterior sigue rigiendo. Los periodos que ya se hayan armado conservan el
+                    precio con el que se crearon: si alguno tomó este, hay que ajustarlo día por día
+                    en el periodo, mientras esté en borrador.
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+                <AlertDialogCancel>Conservarlo</AlertDialogCancel>
+                <AlertDialogAction @click="cancelarConfirmado">Cancelar el precio</AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+    </AlertDialog>
+
     <Dialog v-model:open="modal">
         <DialogContent class="sm:max-w-md">
             <form @submit.prevent="guardar">
                 <DialogHeader>
                     <DialogTitle>Registrar precio</DialogTitle>
                     <DialogDescription>
-                        El precio anterior se cierra el día antes de que empiece este. Los periodos
-                        ya creados conservan el precio con el que se armaron.
+                        El precio anterior se cierra el día antes de que empiece este, o queda
+                        reemplazado si ambos empiezan el mismo día. Los periodos ya creados
+                        conservan el precio con el que se armaron.
                     </DialogDescription>
                 </DialogHeader>
 
@@ -286,6 +357,17 @@ onMounted(() => {
                         <Input id="vigente_desde" v-model="form.vigente_desde" type="date" :min="hoy" />
                         <p v-if="esProgramada" class="text-xs text-muted-foreground">
                             Queda programado: hasta ese día sigue rigiendo el precio actual.
+                        </p>
+                        <p v-else-if="reemplazaElDeHoy" class="text-xs text-amber-700">
+                            Reemplaza el precio de hoy ({{ dinero(vigente.precio) }}): rige a partir
+                            de ahora, y lo ya armado conserva el suyo.
+                        </p>
+                        <p v-else class="text-xs text-muted-foreground">
+                            Rige desde hoy; el precio anterior queda cerrado ayer.
+                        </p>
+                        <p v-if="siguienteProgramada" class="text-xs text-muted-foreground">
+                            Regirá hasta el {{ fecha(siguienteProgramada.vigente_desde) }}, cuando
+                            entre el precio ya programado de {{ dinero(siguienteProgramada.precio) }}.
                         </p>
                         <p v-if="errores.vigente_desde" class="text-sm text-red-600">
                             {{ errores.vigente_desde[0] }}

@@ -100,6 +100,9 @@ Route::middleware('auth:sanctum')->group(function () {
     // Va ANTES de cualquier /tarifas/{tarifa} por el route binding.
     Route::get('/tarifas/vigente', [TarifasController::class, 'vigente'])->middleware('can:tarifas.ver');
     Route::post('/tarifas', [TarifasController::class, 'store'])->middleware('can:tarifas.editar');
+    // Única operación del catálogo que borra: un precio programado que nunca llegó a regir no es
+    // historia de nada. Los que ya rigieron se conservan siempre (§6.5).
+    Route::delete('/tarifas/{tarifa}', [TarifasController::class, 'destroy'])->middleware('can:tarifas.editar');
 
     // Periodos de servicio (§6, §8, §9). Sin DELETE: el periodo guarda el precio con el que se
     // cobró cada día. Cada transición de estado tiene su permiso.

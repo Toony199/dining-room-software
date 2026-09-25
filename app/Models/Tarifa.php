@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use RuntimeException;
 
 /**
  * Precio del día de comedor (§6.4, §18).
@@ -26,6 +27,9 @@ use Illuminate\Support\Facades\DB;
 #[Fillable(['precio', 'vigente_desde', 'vigente_hasta', 'creado_por'])]
 class Tarifa extends Model
 {
+    /** Id de la tarifa que rige hoy; null cuando todavía no se ha averiguado (ver idVigente). */
+    private static ?int $idVigente = null;
+
     /**
      * @return array<string, string>
      */
@@ -74,23 +78,48 @@ class Tarifa extends Model
     }
 
     /**
-     * Registra un precio nuevo y cierra el anterior el día previo, para que la línea de tiempo no
-     * tenga huecos ni dos precios el mismo día.
+     * Registra un precio a partir de una fecha y deja la línea de tiempo coherente.
+     *
+     * El catálogo es una línea de tiempo, no una lista a la que solo se agrega al final: un precio
+     * puede entrar hoy aunque ya haya uno programado para más adelante. Se acomodan los vecinos:
+     *
+     *  - el anterior termina el día previo al nuevo;
+     *  - si otro empieza el mismo día, queda reemplazado: se le deja ese día, porque de verdad
+     *    rigió hasta el cambio, y a partir de ahí manda el nuevo (vigenteEn() desempata por el
+     *    último registrado);
+     *  - si ya hay uno más adelante, el nuevo termina el día antes de que entre aquel, para no
+     *    pisarlo.
      */
     public static function registrar(float $precio, Carbon|string $desde, ?int $usuarioId = null): self
     {
         $desde = Carbon::parse($desde)->startOfDay();
 
         return DB::transaction(function () use ($precio, $desde, $usuarioId) {
-            // Bloquea la última para que dos altas a la vez no dejen dos tarifas abiertas.
-            $anterior = self::query()->orderByDesc('vigente_desde')->orderByDesc('id')->lockForUpdate()->first();
+            // Tabla chica y muy poco escrita: se bloquea entera para que dos altas a la vez no
+            // dejen la línea de tiempo a medio acomodar.
+            self::query()->lockForUpdate()->get(['id']);
+
+            $anterior = self::query()
+                ->whereDate('vigente_desde', '<', $desde)
+                ->orderByDesc('vigente_desde')
+                ->orderByDesc('id')
+                ->first();
 
             $anterior?->forceFill(['vigente_hasta' => $desde->copy()->subDay()])->save();
+
+            foreach (self::query()->whereDate('vigente_desde', $desde)->get() as $reemplazada) {
+                $reemplazada->forceFill(['vigente_hasta' => $desde->copy()])->save();
+            }
+
+            $siguiente = self::query()
+                ->whereDate('vigente_desde', '>', $desde)
+                ->orderBy('vigente_desde')
+                ->first();
 
             return self::create([
                 'precio' => $precio,
                 'vigente_desde' => $desde,
-                'vigente_hasta' => null,
+                'vigente_hasta' => $siguiente?->vigente_desde->copy()->subDay(),
                 'creado_por' => $usuarioId,
             ]);
         });
@@ -102,9 +131,70 @@ class Tarifa extends Model
         return $this->vigente_desde->isFuture();
     }
 
+    /**
+     * Cancela un precio que todavía no entra en vigor y vuelve a unir la línea de tiempo: el
+     * anterior se extiende hasta donde llegaba este.
+     *
+     * Se borra en vez de marcarse, porque un precio que nunca rigió no es historia de nada: dejarlo
+     * solo ensucia el catálogo. Los precios que ya rigieron no se tocan jamás (§6.5), y esta es la
+     * única excepción a que aquí no se borre nada.
+     *
+     * @throws RuntimeException si ya está en vigor.
+     */
+    public function cancelar(): void
+    {
+        if (! $this->estaProgramada()) {
+            throw new RuntimeException('Ese precio ya está en vigor: solo se cancelan los programados para más adelante.');
+        }
+
+        DB::transaction(function () {
+            self::query()->lockForUpdate()->get(['id']);
+
+            $anterior = self::query()
+                ->whereKeyNot($this->getKey())
+                ->whereDate('vigente_desde', '<=', $this->vigente_desde)
+                ->orderByDesc('vigente_desde')
+                ->orderByDesc('id')
+                ->first();
+
+            $siguiente = self::query()
+                ->whereKeyNot($this->getKey())
+                ->whereDate('vigente_desde', '>', $this->vigente_desde)
+                ->orderBy('vigente_desde')
+                ->first();
+
+            $this->delete();
+
+            // El anterior recupera el tramo que ocupaba este, hasta el siguiente o sin fin.
+            $anterior?->forceFill([
+                'vigente_hasta' => $siguiente?->vigente_desde->copy()->subDay(),
+            ])->save();
+        });
+    }
+
+    /**
+     * La que rige hoy. Se compara contra vigenteEn(), y no contra las fechas de esta fila, porque
+     * un precio reemplazado el mismo día comparte fecha con el que lo sustituyó: el empate lo
+     * desempata el orden de registro, no el calendario.
+     */
     public function estaVigente(): bool
     {
-        return ! $this->estaProgramada()
-            && ($this->vigente_hasta === null || ! $this->vigente_hasta->isPast());
+        return $this->exists && $this->getKey() === self::idVigente();
+    }
+
+    /**
+     * Id de la tarifa que rige hoy, recordado mientras nadie registre otra: el historial pregunta
+     * por cada renglón y no tiene sentido repetir la consulta. Registrar un precio lo olvida, que
+     * es justo cuando deja de valer.
+     */
+    private static function idVigente(): ?int
+    {
+        return self::$idVigente ??= self::vigente()?->getKey() ?? 0;
+    }
+
+    protected static function booted(): void
+    {
+        static::saved(fn () => self::$idVigente = null);
+        static::deleted(fn () => self::$idVigente = null);
     }
 }

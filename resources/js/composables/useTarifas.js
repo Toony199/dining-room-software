@@ -88,6 +88,24 @@ export function useTarifas() {
         }
     };
 
+    /** Cancela un precio que todavía no entra en vigor. */
+    const cancelarTarifa = async (tarifa) => {
+        try {
+            loading.value = true;
+            await axios.delete(`/api/tarifas/${tarifa.id}`);
+            await Promise.all([fetchTarifas(1), fetchVigente()]);
+            toast.success('Se canceló el precio programado.');
+
+            return true;
+        } catch (error) {
+            manejarError(error, 'No se pudo cancelar el precio.');
+
+            return false;
+        } finally {
+            loading.value = false;
+        }
+    };
+
     return {
         loading,
         tarifas,
@@ -97,6 +115,7 @@ export function useTarifas() {
         fetchTarifas,
         fetchVigente,
         createTarifa,
+        cancelarTarifa,
         limpiarErrores,
     };
 }
