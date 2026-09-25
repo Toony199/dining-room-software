@@ -24,6 +24,14 @@ abstract class TestCase extends BaseTestCase
     protected const APELLIDO_DE_SESION = 'ZZSesion';
 
     /**
+     * Correo de la cuenta de la sesión. Fijo y ordenando al final, por lo mismo que el rol y el
+     * departamento: el de la factory es aleatorio y de vez en cuando ordenaba antes que los correos
+     * que las pruebas dan por primeros. Con dominio propio, además, para que no lo encuentren las
+     * pruebas que buscan por texto (varias buscan "arod").
+     */
+    protected const CORREO_DE_SESION = 'zzsesion@zzsesion.test';
+
+    /**
      * Filas que `actuandoComo` añade a cada tabla. Las pruebas que cuentan registros las
      * descuentan en vez de fingir que las tablas empiezan vacías.
      */
@@ -64,6 +72,7 @@ abstract class TestCase extends BaseTestCase
                 'departamento_id' => Departamento::factory()->create(['nombre' => self::NOMBRE_DE_SESION])->id,
             ])->id,
             'rol_id' => $rol->id,
+            'email' => self::CORREO_DE_SESION,
         ]);
 
         $this->actingAs($cuenta);
