@@ -65,6 +65,11 @@ class PermisoSeeder extends Seeder
             'tarifas.ver' => 'Consultar el precio por día y su historial.',
             'tarifas.editar' => 'Registrar un precio por día nuevo.',
         ],
+        // El kiosco no usa una cuenta administrativa (§10.1), pero sí una propia: el equipo que
+        // está en el pasillo entra con ella y solo puede operar el kiosco.
+        'kiosco' => [
+            'kiosco.operar' => 'Identificar colaboradores por su gafete y generar sus fichas en el kiosco.',
+        ],
         'periodos' => [
             'periodos.ver' => 'Consultar los periodos de servicio.',
             'periodos.crear' => 'Crear periodos de servicio.',

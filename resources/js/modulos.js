@@ -1,4 +1,4 @@
-import { CalendarRange, Coins, KeyRound, Landmark, Palette, ShieldCheck, Users } from '@lucide/vue';
+import { CalendarRange, Coins, KeyRound, Landmark, Palette, ScanLine, ShieldCheck, Users } from '@lucide/vue';
 
 /**
  * Módulos administrativos y el permiso que abre cada uno (§5.3).
@@ -10,6 +10,13 @@ import { CalendarRange, Coins, KeyRound, Landmark, Palette, ShieldCheck, Users }
  * comprobación que hace el backend en cada ruta (§5.6).
  */
 export const modulos = [
+    {
+        title: 'Kiosco',
+        url: '/kiosco',
+        icon: ScanLine,
+        permiso: 'kiosco.operar',
+        descripcion: 'Pantalla donde los colaboradores escanean su gafete y piden sus días.',
+    },
     {
         title: 'Colaboradores',
         url: '/personas',

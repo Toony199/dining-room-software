@@ -217,10 +217,16 @@ class Periodo extends Model
      */
     public function cerrar(): void
     {
-        $this->cambiarEstado(
-            self::PAGO_CERRADO,
-            $this->estado === self::ABIERTO ? null : 'Solo se puede cerrar un periodo abierto.',
-        );
+        DB::transaction(function () {
+            $this->cambiarEstado(
+                self::PAGO_CERRADO,
+                $this->estado === self::ABIERTO ? null : 'Solo se puede cerrar un periodo abierto.',
+            );
+
+            // Quien generó su ficha y no fue a pagar se queda sin ella (§8.3, §17.4). No reviven al
+            // reabrir: contarían porciones que la cocina ya no va a preparar.
+            Ficha::vencerPendientesDe($this);
+        });
     }
 
     /**

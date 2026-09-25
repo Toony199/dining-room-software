@@ -39,6 +39,10 @@ class RolSeeder extends Seeder
                 'pagos.confirmar',
             ],
         ],
+        'Kiosco' => [
+            'descripcion' => 'Cuenta del equipo del kiosco. Solo genera fichas; no abre ningún módulo administrativo.',
+            'permisos' => ['kiosco.operar'],
+        ],
         'Gestor de periodos' => [
             'descripcion' => 'Administra los periodos de servicio y su ventana de pago.',
             'permisos' => [

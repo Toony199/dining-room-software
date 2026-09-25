@@ -5,6 +5,7 @@ use App\Http\Controllers\DepartamentosController;
 use App\Http\Controllers\DisenosGafeteController;
 use App\Http\Controllers\FotosPersonaController;
 use App\Http\Controllers\GafetesController;
+use App\Http\Controllers\KioscoController;
 use App\Http\Controllers\PeriodosController;
 use App\Http\Controllers\PermisosController;
 use App\Http\Controllers\PersonasController;
@@ -51,6 +52,17 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/personas/{persona}', [PersonasController::class, 'update'])->middleware('can:colaboradores.editar');
     Route::patch('/personas/{persona}/desactivar', [PersonasController::class, 'desactivar'])->middleware('can:colaboradores.desactivar');
     Route::patch('/personas/{persona}/activar', [PersonasController::class, 'activar'])->middleware('can:colaboradores.desactivar');
+
+    // Kiosco (§10). Quien está frente a la pantalla es un colaborador y se identifica con el QR
+    // de su gafete, pero el equipo entra con su propia cuenta: la del rol Kiosco, que solo tiene
+    // este permiso y por eso no abre ningún módulo administrativo (§10.1). El límite por
+    // frecuencia se queda: un lector averiado o un token probado a mano no deben poder martillear.
+    Route::middleware('throttle:kiosco')->group(function () {
+        Route::post('/kiosco/identificar', [KioscoController::class, 'identificar'])
+            ->middleware('can:kiosco.operar')->name('kiosco.identificar');
+        Route::post('/kiosco/fichas', [KioscoController::class, 'generarFicha'])
+            ->middleware('can:kiosco.operar')->name('kiosco.fichas');
+    });
 
     // Gafetes (§4). Sin DELETE ni edición: un gafete solo se reemplaza y el historial se
     // conserva (§4.3). El token del QR solo sale por la impresión, que comprueba sus permisos

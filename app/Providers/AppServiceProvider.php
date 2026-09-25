@@ -3,7 +3,10 @@
 namespace App\Providers;
 
 use App\Models\User;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -22,6 +25,17 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->registrarPermisos();
+        $this->limitarElKiosco();
+    }
+
+    /**
+     * Frecuencia máxima del kiosco (§10). Sus rutas son las únicas sin sesión, así que el límite es
+     * lo que impide probar tokens de gafete a mano desde fuera. Treinta por minuto sobra para una
+     * fila de personas escaneando su gafete, y no alcanza para adivinar nada.
+     */
+    private function limitarElKiosco(): void
+    {
+        RateLimiter::for('kiosco', fn (Request $request) => Limit::perMinute(30)->by($request->ip()));
     }
 
     /**
