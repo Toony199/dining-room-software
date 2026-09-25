@@ -71,6 +71,10 @@ const aFecha = (valor) => {
 
 const fechaLarga = (valor) => aFecha(valor).toLocaleDateString('es-MX', { day: 'numeric', month: 'long' })
 
+const fechaHora = (valor) => (valor
+    ? new Date(valor).toLocaleString('es-MX', { day: '2-digit', month: 'long', hour: '2-digit', minute: '2-digit' })
+    : '')
+
 const dinero = (valor) => Number(valor ?? 0).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })
 
 const semana = computed(() => (periodo.value
@@ -345,11 +349,29 @@ onBeforeUnmount(() => {
                         </p>
                     </div>
 
-                    <p class="text-xl">
-                        {{ ficha.estado === 'PAGADA'
-                            ? 'Tu ficha ya está pagada.'
-                            : 'Pasa a caja a pagar antes de que cierre la semana.' }}
-                    </p>
+                    <!-- Quien ya pagó consulta aquí su comprobante, en vez de guardar el papel (§14). -->
+                    <div v-if="ficha.estado === 'PAGADA'" class="w-full rounded-xl border border-green-200 bg-green-50 p-5 text-left">
+                        <p class="text-center text-xl font-semibold text-green-800">Ya está pagada</p>
+                        <dl class="mt-3 grid gap-1 text-lg">
+                            <div class="flex justify-between">
+                                <dt class="text-stone-600">Pagaste</dt>
+                                <dd class="tabular-nums">{{ dinero(ficha.pago?.total_cobrado) }}</dd>
+                            </div>
+                            <div class="flex justify-between">
+                                <dt class="text-stone-600">Fecha</dt>
+                                <dd>{{ fechaHora(ficha.pago?.confirmado_en) }}</dd>
+                            </div>
+                            <div v-if="ficha.pago?.cobrador" class="flex justify-between">
+                                <dt class="text-stone-600">Te cobró</dt>
+                                <dd>{{ ficha.pago.cobrador }}</dd>
+                            </div>
+                        </dl>
+                        <p class="mt-3 text-center text-stone-600">
+                            Preséntate con tu gafete en el comedor los días que pagaste.
+                        </p>
+                    </div>
+
+                    <p v-else class="text-xl">Pasa a caja a pagar antes de que cierre la semana.</p>
                     <p class="text-stone-500">Volviendo al inicio en {{ restante }} s</p>
                     <Button size="lg" class="bg-blue-800 text-lg hover:bg-blue-900" @click="volverAlInicio">
                         Terminar

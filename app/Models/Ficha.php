@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
@@ -54,6 +55,15 @@ class Ficha extends Model
             'total' => 'decimal:2',
             'generada_en' => 'datetime',
         ];
+    }
+
+    /**
+     * El folio manda: es lo que el cobrador escanea o teclea, y con lo que la persona llega a la
+     * caja (§12). Nadie conoce el id.
+     */
+    public function getRouteKeyName(): string
+    {
+        return 'folio';
     }
 
     public function persona(): BelongsTo
@@ -137,6 +147,124 @@ class Ficha extends Model
             }
 
             return $ficha;
+        });
+    }
+
+    public function pago(): HasOne
+    {
+        return $this->hasOne(Pago::class);
+    }
+
+    public function derechos(): HasMany
+    {
+        return $this->hasMany(DerechoConsumo::class);
+    }
+
+    /**
+     * Cambia los días de la ficha antes de pagar (§13, §17.3).
+     *
+     * Lo hace el cobrador cuando la persona, ya en la caja, pide agregar o quitar un día. El total
+     * se recalcula con el precio de cada día, y la ficha queda como si se hubiera generado así.
+     *
+     * @param  array<int, int>  $diasElegidos  ids de dias_periodo
+     *
+     * @throws RuntimeException
+     */
+    public function cambiarDias(array $diasElegidos): void
+    {
+        if (! $this->estaPendiente()) {
+            throw new RuntimeException($this->estado === self::PAGADA
+                ? 'Esta ficha ya está pagada: la operación quedó cerrada.'
+                : 'Esta ficha venció y ya no se puede cobrar.');
+        }
+
+        $elegidos = array_values(array_unique($diasElegidos));
+
+        DB::transaction(function () use ($elegidos) {
+            $dias = DiaPeriodo::query()
+                ->where('periodo_id', $this->periodo_id)
+                ->whereIn('id', $elegidos)
+                ->where('disponible', true)
+                ->get();
+
+            if ($dias->count() !== count($elegidos)) {
+                throw new RuntimeException('Alguno de los días elegidos no es de esta semana o no tiene servicio.');
+            }
+
+            $this->dias()->whereNotIn('dia_periodo_id', $elegidos)->delete();
+
+            foreach ($dias as $dia) {
+                $this->dias()->updateOrCreate(
+                    ['dia_periodo_id' => $dia->getKey()],
+                    // Al agregar un día se congela su precio, igual que al generar la ficha (§6.5).
+                    ['precio_snapshot' => $dia->precio_aplicado],
+                );
+            }
+
+            $this->forceFill(['total' => $this->dias()->sum('precio_snapshot')])->save();
+        });
+
+        $this->load('dias');
+    }
+
+    /**
+     * Confirma el cobro físico (§12) y crea los derechos de consumo, uno por día pagado (§2.2,
+     * §2.3).
+     *
+     * El sistema no cobra: valida el monto como un POS. Menos de lo que cuesta se rechaza, lo justo
+     * o de más se acepta y se calcula el cambio (§12.1).
+     *
+     * @throws RuntimeException
+     */
+    public function confirmarPago(float $montoRecibido, User $cobrador): Pago
+    {
+        return DB::transaction(function () use ($montoRecibido, $cobrador) {
+            // Se relee bajo bloqueo: dos cajas no pueden cobrar la misma ficha a la vez.
+            $ficha = self::query()->whereKey($this->getKey())->lockForUpdate()->firstOrFail();
+
+            if (! $ficha->estaPendiente()) {
+                throw new RuntimeException($ficha->estado === self::PAGADA
+                    ? 'Esta ficha ya estaba pagada.'
+                    : 'Esta ficha venció y ya no se puede cobrar.');
+            }
+
+            $total = (float) $ficha->total;
+
+            if ($ficha->dias()->count() === 0) {
+                throw new RuntimeException('La ficha se quedó sin días: agrega al menos uno antes de cobrar.');
+            }
+
+            if ($montoRecibido < $total) {
+                throw new RuntimeException(sprintf(
+                    'El monto recibido ($%s) no alcanza para pagar $%s. Pide la diferencia antes de confirmar.',
+                    number_format($montoRecibido, 2),
+                    number_format($total, 2),
+                ));
+            }
+
+            $pago = $ficha->pago()->create([
+                'total_cobrado' => $total,
+                'monto_recibido' => $montoRecibido,
+                'cambio' => round($montoRecibido - $total, 2),
+                'cobrador_id' => $cobrador->getKey(),
+                'confirmado_en' => now(),
+            ]);
+
+            $ficha->forceFill(['estado' => self::PAGADA])->save();
+
+            foreach ($ficha->dias()->with('diaPeriodo')->get() as $dia) {
+                $ficha->derechos()->create([
+                    'persona_id' => $ficha->persona_id,
+                    'periodo_id' => $ficha->periodo_id,
+                    'dia_periodo_id' => $dia->dia_periodo_id,
+                    'estado' => DerechoConsumo::VIGENTE,
+                    'precio_pagado' => $dia->precio_snapshot,
+                ]);
+            }
+
+            $this->setRawAttributes($ficha->getAttributes(), true);
+
+            return $pago;
         });
     }
 

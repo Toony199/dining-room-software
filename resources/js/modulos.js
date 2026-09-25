@@ -1,4 +1,4 @@
-import { CalendarRange, Coins, KeyRound, Landmark, Palette, ScanLine, ShieldCheck, Users } from '@lucide/vue';
+import { Banknote, CalendarRange, Coins, KeyRound, Landmark, Palette, ScanLine, ShieldCheck, Users } from '@lucide/vue';
 
 /**
  * Módulos administrativos y el permiso que abre cada uno (§5.3).
@@ -16,6 +16,13 @@ export const modulos = [
         icon: ScanLine,
         permiso: 'kiosco.operar',
         descripcion: 'Pantalla donde los colaboradores escanean su gafete y piden sus días.',
+    },
+    {
+        title: 'Caja',
+        url: '/cobro',
+        icon: Banknote,
+        permiso: 'fichas.ver',
+        descripcion: 'Cobro de las fichas, comprobantes y corte del día.',
     },
     {
         title: 'Colaboradores',

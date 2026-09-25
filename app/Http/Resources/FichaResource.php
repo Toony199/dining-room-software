@@ -34,6 +34,29 @@ class FichaResource extends JsonResource
                 'id' => $this->periodo->id,
                 'fecha_inicio' => $this->periodo->fecha_inicio?->toDateString(),
                 'fecha_fin' => $this->periodo->fecha_fin?->toDateString(),
+                // Los días de la semana completa, para que la caja pueda agregar o quitar (§13).
+                // Los no disponibles viajan marcados, no escondidos.
+                'dias' => $this->periodo->relationLoaded('dias')
+                    ? $this->periodo->dias->map(fn ($dia) => [
+                        'id' => $dia->id,
+                        'fecha' => $dia->fecha?->toDateString(),
+                        'dia_semana' => $dia->dia_semana,
+                        'disponible' => $dia->disponible,
+                        'motivo_indisponibilidad' => $dia->motivo_indisponibilidad,
+                        'precio_aplicado' => $dia->precio_aplicado,
+                    ])->all()
+                    : null,
+            ]),
+            // El pago es el respaldo de la operación (§14): viaja con la ficha para que la caja y
+            // el kiosco puedan mostrar el ticket sin pedirlo aparte.
+            'pago' => $this->whenLoaded('pago', fn () => $this->pago === null ? null : [
+                'total_cobrado' => $this->pago->total_cobrado,
+                'monto_recibido' => $this->pago->monto_recibido,
+                'cambio' => $this->pago->cambio,
+                'confirmado_en' => $this->pago->confirmado_en,
+                'cobrador' => $this->pago->relationLoaded('cobrador')
+                    ? ($this->pago->cobrador?->persona?->nombre_completo ?? $this->pago->cobrador?->email)
+                    : null,
             ]),
             'dias' => $this->whenLoaded('dias', fn () => $this->dias
                 ->sortBy(fn ($dia) => $dia->diaPeriodo?->fecha)

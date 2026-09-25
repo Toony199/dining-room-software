@@ -3,9 +3,11 @@
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DepartamentosController;
 use App\Http\Controllers\DisenosGafeteController;
+use App\Http\Controllers\FichasController;
 use App\Http\Controllers\FotosPersonaController;
 use App\Http\Controllers\GafetesController;
 use App\Http\Controllers\KioscoController;
+use App\Http\Controllers\PagosController;
 use App\Http\Controllers\PeriodosController;
 use App\Http\Controllers\PermisosController;
 use App\Http\Controllers\PersonasController;
@@ -112,6 +114,18 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::patch('/periodos/{periodo}/abrir', [PeriodosController::class, 'abrir'])->middleware('can:periodos.abrir');
     Route::patch('/periodos/{periodo}/cerrar', [PeriodosController::class, 'cerrar'])->middleware('can:periodos.cerrar');
     Route::patch('/periodos/{periodo}/reabrir', [PeriodosController::class, 'reabrir'])->middleware('can:periodos.reabrir');
+
+    // Fichas y cobro (§12, §13, §14). La ficha se busca por folio, que es lo que trae la
+    // persona a la caja. Sin alta ni baja: nacen en el kiosco y no se borran; lo único que cambia
+    // antes de pagar son sus días.
+    Route::get('/fichas', [FichasController::class, 'index'])->middleware('can:fichas.ver');
+    // Va ANTES de /fichas/{ficha}: si no, el binding buscaría una ficha con folio "por-gafete".
+    // Hace falta porque el ticket casi nunca se imprime: la persona llega con su gafete.
+    Route::get('/fichas/por-gafete', [FichasController::class, 'porGafete'])->middleware('can:fichas.ver');
+    Route::get('/fichas/{ficha}', [FichasController::class, 'show'])->middleware('can:fichas.ver');
+    Route::put('/fichas/{ficha}/dias', [FichasController::class, 'actualizarDias'])->middleware('can:fichas.editar');
+    Route::post('/fichas/{ficha}/pago', [PagosController::class, 'store'])->middleware('can:pagos.confirmar');
+    Route::get('/pagos', [PagosController::class, 'index'])->middleware('can:pagos.ver');
 
     // Roles (§5.2). Sin DELETE: un rol se desactiva (§5.5).
     Route::get('/roles', [RolesController::class, 'index'])->middleware('can:roles.ver');

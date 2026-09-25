@@ -39,7 +39,9 @@ class KioscoController extends Controller
             ->where('persona_id', $persona->getKey())
             ->where('periodo_id', $periodo->getKey())
             ->valida()
-            ->with(['dias.diaPeriodo', 'periodo'])
+            // El pago viaja también: quien ya pagó puede consultar su comprobante con el gafete,
+             // en vez de guardar un papel (§14).
+            ->with(['dias.diaPeriodo', 'periodo', 'pago.cobrador.persona'])
             ->first();
 
         return response()->json([

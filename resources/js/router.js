@@ -13,6 +13,7 @@ import DisenoGafeteIndex from './views/gafetes/DisenoGafeteIndex.vue';
 import TarifasIndex from './views/tarifas/TarifasIndex.vue';
 import PeriodosIndex from './views/periodos/PeriodosIndex.vue';
 import KioscoIndex from './views/kiosco/KioscoIndex.vue';
+import CobroIndex from './views/cobro/CobroIndex.vue';
 import LoginIndex from './views/auth/LoginIndex.vue';
 
 const routes = [
@@ -91,6 +92,16 @@ const routes = [
             requiresAuth: true,
             // Sin barra lateral: desde el kiosco no se llega a la administración (§10.2).
             layout: 'blank',
+            permission: [],
+        }
+    },
+    {
+        path: '/cobro',
+        name: 'CobroIndex',
+        component: CobroIndex,
+        meta: {
+            title: 'Caja',
+            requiresAuth: true,
             permission: [],
         }
     },

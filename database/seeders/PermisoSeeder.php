@@ -78,6 +78,11 @@ class PermisoSeeder extends Seeder
             'periodos.cerrar' => 'Cerrar la ventana de pago de un periodo.',
             'periodos.reabrir' => 'Reabrir un periodo cerrado.',
         ],
+        // Están en el catálogo de docs/analisis-diseno.md §4; faltaban por sembrar.
+        'fichas' => [
+            'fichas.ver' => 'Consultar las fichas generadas y su estado.',
+            'fichas.editar' => 'Agregar o quitar días de una ficha antes de cobrarla.',
+        ],
         'pagos' => [
             'pagos.ver' => 'Consultar los pagos registrados.',
             'pagos.confirmar' => 'Confirmar el pago físico de una ficha.',

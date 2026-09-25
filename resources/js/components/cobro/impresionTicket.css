@@ -1,0 +1,34 @@
+/*
+ * Impresión del ticket de pago (§14), en papel térmico de 80 mm.
+ *
+ * Global a propósito: `@page` y el ocultado del resto de la página no pueden ser scoped. Todo se
+ * condiciona a las clases que pone imprimirTicket(), para no alterar ninguna otra impresión de la
+ * aplicación, empezando por la de gafetes.
+ */
+.zona-impresion-ticket {
+    display: none;
+}
+
+/*
+ * El alto lo decide el contenido: el rollo es continuo y la impresora corta al terminar. Sin
+ * márgenes, porque el cabezal ya deja los suyos.
+ */
+@page ticket {
+    size: 80mm auto;
+    margin: 0;
+}
+
+@media print {
+    html.imprimiendo-ticket body > *:not(.zona-impresion-ticket--activa) {
+        display: none !important;
+    }
+
+    html.imprimiendo-ticket .zona-impresion-ticket--activa {
+        display: block;
+        margin: 0 auto;
+        page: ticket;
+        /* Sin esto el navegador omite los separadores y el texto sale descolorido. */
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+}

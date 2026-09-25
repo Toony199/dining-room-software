@@ -194,6 +194,21 @@ class KioscoFichaTest extends TestCase
             ->assertJsonCount(2, 'data.ficha.dias');
     }
 
+    public function test_quien_ya_pago_consulta_su_comprobante_con_el_gafete(): void
+    {
+        // §14: el ticket queda consultable con el gafete, para no depender del papel.
+        $ficha = Ficha::generar($this->persona, $this->periodo, $this->periodo->dias()->pluck('id')->take(2)->all());
+        $ficha->confirmarPago(150, auth()->user());
+
+        $this->identificar()
+            ->assertOk()
+            ->assertJsonPath('data.ficha.estado', Ficha::PAGADA)
+            ->assertJsonPath('data.ficha.pago.total_cobrado', '100.00')
+            ->assertJsonPath('data.ficha.pago.monto_recibido', '150.00')
+            ->assertJsonPath('data.ficha.pago.cambio', '50.00')
+            ->assertJsonPath('data.ficha.pago.cobrador', fn ($nombre) => str_contains((string) $nombre, self::APELLIDO_DE_SESION));
+    }
+
     // --- Generación (§11 paso 3 y 4) ------------------------------------------------------
 
     public function test_genera_la_ficha_con_los_dias_elegidos_y_su_total(): void

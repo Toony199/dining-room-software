@@ -35,6 +35,8 @@ class RolSeeder extends Seeder
                 // la tabla muestra el departamento de cada persona y el filtro lo necesita.
                 'departamentos.ver',
                 'periodos.ver',
+                'fichas.ver',
+                'fichas.editar',
                 'pagos.ver',
                 'pagos.confirmar',
             ],
