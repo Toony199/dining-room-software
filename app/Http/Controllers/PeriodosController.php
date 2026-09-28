@@ -98,13 +98,22 @@ class PeriodosController extends Controller
     }
 
     /**
-     * Ajusta la ventana de generación y pago. Solo en BORRADOR (§8.1): moverla con el periodo ya
-     * abierto cambiaría las reglas a mitad del juego para quien ya generó su ficha.
+     * Ajusta la ventana para generar fichas y pagar.
+     *
+     * Se puede en borrador y también con el periodo abierto: ampliar el plazo porque no alcanzaron
+     * todos, o recortarlo, es una decisión normal del gestor y no toca nada de lo ya generado. La
+     * ventana solo decide quién puede pedir y pagar *a partir de ahora* (§17.4).
+     *
+     * Con el pago ya cerrado no: ahí la semana se dio por terminada, las fichas pendientes
+     * vencieron y mover las fechas no las revive (§8.3).
      */
     public function update(PeriodoRequest $request, Periodo $periodo): PeriodoResource|JsonResponse
     {
-        if (! $periodo->estaEnBorrador()) {
-            return $this->rechazar('Solo se puede configurar un periodo en borrador.', 'periodo');
+        if (! $periodo->estaEnBorrador() && $periodo->estado !== Periodo::ABIERTO) {
+            return $this->rechazar(
+                'El pago de este periodo ya se cerró: para volver a admitir fichas hay que reabrirlo.',
+                'periodo',
+            );
         }
 
         $periodo->update($request->validated());
@@ -114,6 +123,11 @@ class PeriodosController extends Controller
 
     /**
      * Marca un día como festivo o fuera de servicio, con su motivo, o ajusta su precio (§6.3, §8.1).
+     *
+     * Esto sí queda en borrador, y no es rigidez: con el periodo abierto puede haber fichas que ya
+     * incluyen ese día, algunas pagadas. Quitarlo dejaría derechos de consumo de un día que ya no
+     * existe, y cambiar su precio, fichas cobradas con un precio distinto al del día. Si hay que
+     * suspender el servicio de un día ya abierto, hace falta decidir antes qué pasa con lo cobrado.
      */
     public function actualizarDia(DiaPeriodoRequest $request, Periodo $periodo, DiaPeriodo $dia): PeriodoResource|JsonResponse
     {

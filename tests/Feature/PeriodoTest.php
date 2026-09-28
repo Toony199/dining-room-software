@@ -186,8 +186,10 @@ class PeriodoTest extends TestCase
             ->assertJsonPath('errors.fecha_inicio.0', fn ($m) => str_contains($m, 'Ya existe un periodo'));
     }
 
-    public function test_la_ventana_se_puede_mover_mientras_este_en_borrador(): void
+    public function test_la_ventana_se_puede_mover_en_borrador_y_con_el_periodo_abierto(): void
     {
+        // Ampliar el plazo porque no alcanzaron todos es una decisión normal del gestor, y no toca
+        // nada de lo ya generado: la ventana solo decide quién puede pedir y pagar desde ahora.
         $this->actuandoComo('periodos.editar');
         $periodo = $this->periodoDeLaSemanaSiguiente();
 
@@ -202,10 +204,47 @@ class PeriodoTest extends TestCase
 
         $this->putJson("/api/periodos/{$periodo->id}", [
             'ventana_inicio' => '2026-03-11',
-            'ventana_fin' => '2026-03-13',
+            'ventana_fin' => '2026-03-14',
+        ])
+            ->assertOk()
+            ->assertJsonPath('data.ventana_fin', '2026-03-14')
+            ->assertJsonPath('data.estado', Periodo::ABIERTO);
+    }
+
+    public function test_la_ventana_no_se_mueve_con_el_pago_ya_cerrado(): void
+    {
+        // §8.3: ahí la semana se dio por terminada y las fichas pendientes vencieron; mover las
+        // fechas no las revive. Para volver a admitir fichas hay que reabrir.
+        $this->actuandoComo('periodos.editar', 'periodos.abrir', 'periodos.cerrar');
+        $periodo = $this->periodoDeLaSemanaSiguiente();
+        $periodo->abrir();
+        $periodo->cerrar();
+
+        $this->putJson("/api/periodos/{$periodo->id}", [
+            'ventana_inicio' => '2026-03-11',
+            'ventana_fin' => '2026-03-14',
         ])
             ->assertStatus(422)
-            ->assertJsonPath('errors.periodo.0', 'Solo se puede configurar un periodo en borrador.');
+            ->assertJsonPath('errors.periodo.0', fn ($m) => str_contains($m, 'ya se cerró'));
+    }
+
+    public function test_ampliar_la_ventana_vuelve_a_admitir_fichas(): void
+    {
+        // El efecto que se busca: con la ventana vencida el kiosco ya no acepta, y al ampliarla
+        // vuelve a aceptar sin tener que reabrir nada (§17.4).
+        $this->actuandoComo('periodos.editar', 'periodos.ver');
+        $periodo = $this->periodoDeLaSemanaSiguiente();   // ventana 11 al 13 de marzo
+        $periodo->abrir();
+
+        $this->travelTo(Carbon::parse('2026-03-14')->setTime(9, 0));
+        $this->getJson("/api/periodos/{$periodo->id}")->assertJsonPath('data.admite_fichas', false);
+
+        $this->putJson("/api/periodos/{$periodo->id}", [
+            'ventana_inicio' => '2026-03-11',
+            'ventana_fin' => '2026-03-15',
+        ])->assertOk();
+
+        $this->getJson("/api/periodos/{$periodo->id}")->assertJsonPath('data.admite_fichas', true);
     }
 
     // --- Días (§6.3) ------------------------------------------------------------------------

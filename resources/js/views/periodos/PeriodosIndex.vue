@@ -174,6 +174,13 @@ const dias = ref([])
 
 const esBorrador = computed(() => periodo.value?.estado === 'BORRADOR')
 
+// La ventana se puede mover también con el periodo abierto: ampliar el plazo porque no alcanzaron
+// todos es una decisión normal, y no toca nada de lo ya generado. Los días, en cambio, se quedan
+// fijos al abrir (ver PeriodosController::actualizarDia).
+const ventanaEditable = computed(
+    () => puede.value.editar && ['BORRADOR', 'ABIERTO'].includes(periodo.value?.estado)
+)
+
 const cargarDetalle = (datos) => {
     periodo.value = datos
     ventana.ventana_inicio = datos.ventana_inicio
@@ -498,10 +505,14 @@ onMounted(() => {
                 </DialogTitle>
                 <DialogDescription>
                     <template v-if="esBorrador && puede.editar">
-                        En borrador se ajustan los días, sus precios y la ventana. Al abrirlo quedan fijos.
+                        En borrador se ajustan los días, sus precios y la ventana.
+                    </template>
+                    <template v-else-if="ventanaEditable">
+                        Abierto solo se mueve la ventana: los días quedaron fijos al abrirlo, porque
+                        puede haber fichas que ya los incluyen.
                     </template>
                     <template v-else>
-                        El periodo ya no está en borrador: sus días y su ventana ya no se modifican.
+                        El pago de este periodo ya se cerró: sus días y su ventana ya no se modifican.
                     </template>
                 </DialogDescription>
             </DialogHeader>
@@ -518,7 +529,7 @@ onMounted(() => {
                             <Input
                                 v-model="ventana.ventana_inicio"
                                 type="date"
-                                :disabled="!esBorrador || !puede.editar"
+                                :disabled="!ventanaEditable"
                             />
                         </div>
                         <div class="grid gap-1">
@@ -526,16 +537,16 @@ onMounted(() => {
                             <Input
                                 v-model="ventana.ventana_fin"
                                 type="date"
-                                :disabled="!esBorrador || !puede.editar"
+                                :disabled="!ventanaEditable"
                             />
                         </div>
                         <Button
-                            v-if="esBorrador && puede.editar"
+                            v-if="ventanaEditable"
                             size="sm"
                             :disabled="loading"
                             @click="guardarVentana"
                         >
-                            Guardar ventana
+                            Guardar
                         </Button>
                     </div>
                     <p v-if="errores.ventana_inicio" class="text-sm text-red-600">{{ errores.ventana_inicio[0] }}</p>
@@ -543,6 +554,10 @@ onMounted(() => {
                     <p class="text-xs text-muted-foreground">
                         Son los días para pedir y pagar, no los días de comida. Pueden ir antes del
                         periodo, que es lo normal, o dentro de él.
+                    </p>
+                    <p v-if="!esBorrador && ventanaEditable" class="text-xs text-amber-700">
+                        El periodo ya está abierto: ampliar o recortar estos días cambia quién puede
+                        pedir y pagar de aquí en adelante. Las fichas ya generadas no se tocan.
                     </p>
                 </div>
 
