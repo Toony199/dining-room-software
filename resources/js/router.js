@@ -14,6 +14,7 @@ import TarifasIndex from './views/tarifas/TarifasIndex.vue';
 import PeriodosIndex from './views/periodos/PeriodosIndex.vue';
 import KioscoIndex from './views/kiosco/KioscoIndex.vue';
 import CobroIndex from './views/cobro/CobroIndex.vue';
+import ChecadorIndex from './views/checador/ChecadorIndex.vue';
 import LoginIndex from './views/auth/LoginIndex.vue';
 
 const routes = [
@@ -96,6 +97,19 @@ const routes = [
         }
     },
     {
+        // Checador (§16). Como el kiosco: cuenta propia con permisos mínimos y pantalla aislada,
+        // sin menú ni manera de llegar a la administración (§10.2).
+        path: '/checador',
+        name: 'ChecadorIndex',
+        component: ChecadorIndex,
+        meta: {
+            title: 'Checador',
+            requiresAuth: true,
+            layout: 'blank',
+            permission: [],
+        }
+    },
+    {
         path: '/cobro',
         name: 'CobroIndex',
         component: CobroIndex,
@@ -143,14 +157,27 @@ const router = createRouter({
 })
 
 /**
- * ¿La sesión solo sirve para operar el kiosco? Es el caso del equipo del pasillo: su rol tiene
- * `kiosco.operar` y ningún permiso de módulo administrativo.
+ * Para las cuentas de una sola pantalla —el kiosco del pasillo, el checador de la entrada— esa
+ * pantalla es su inicio: el panel de módulos les saldría vacío, porque su rol no abre ninguno.
+ *
+ * Devuelve la ruta a la que mandarlas, o null si la sesión abre algún módulo administrativo.
  */
-function soloOperaElKiosco() {
+function pantallaUnica() {
     const auth = useAuthStore();
 
-    return auth.tienePermiso('kiosco.operar')
-        && !modulos.some((modulo) => modulo.permiso !== 'kiosco.operar' && auth.tienePermiso(modulo.permiso));
+    const abreOtroModulo = (propias) => modulos.some(
+        (modulo) => !propias.includes(modulo.permiso) && auth.tienePermiso(modulo.permiso)
+    );
+
+    if (auth.tienePermiso('kiosco.operar') && !abreOtroModulo(['kiosco.operar'])) {
+        return '/kiosco';
+    }
+
+    if (auth.tienePermiso('consumo.validar') && !abreOtroModulo(['consumo.validar'])) {
+        return '/checador';
+    }
+
+    return null;
 }
 
 /**
@@ -179,10 +206,13 @@ router.beforeEach(async (to) => {
         return { path: '/' };
     }
 
-    // Para la cuenta del kiosco, el kiosco *es* la pantalla de inicio: el panel de módulos le
-    // saldría vacío, porque su rol no abre ninguno.
-    if (to.path === '/' && auth.autenticado && soloOperaElKiosco()) {
-        return { path: '/kiosco' };
+    // Las cuentas de una sola pantalla entran directo a la suya.
+    if (to.path === '/' && auth.autenticado) {
+        const propia = pantallaUnica();
+
+        if (propia) {
+            return { path: propia };
+        }
     }
 
     return true;

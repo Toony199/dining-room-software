@@ -75,6 +75,7 @@ php artisan db:seed
 Variables de `.env` que hay que revisar:
 - `SANCTUM_STATEFUL_DOMAINS` debe incluir el `host:puerto` exacto desde donde se sirve la SPA (`localhost:8000` con `php artisan serve`). La lista por defecto de Sanctum no lo trae; sin coincidencia, `/api/*` queda sin sesión y el login no persiste.
 - `ADMIN_EMAIL`, `ADMIN_PASSWORD` y `ADMIN_NUMERO_EMPLEADO` (vía `config/comedor.php`) definen la cuenta administradora que crea el seeder.
+- `APP_TIMEZONE` debe ser la zona horaria del comedor (`America/Mexico_City`, que `config/app.php` usa también por omisión) y **no** UTC. Casi todas las fechas de este dominio son fechas de negocio —el día de servicio, el derecho de consumo de hoy, la ventana para pedir y pagar, el corte de caja— y todas tienen que cambiar a la medianoche local. Corriendo en UTC sobre una máquina en UTC-6, el día cambiaba a las 18:00 locales: a partir de esa hora el checador buscaba los derechos del día *siguiente* y rechazaba a quien ya había pagado. `tests/Unit/ZonaHorariaTest.php` lo vigila. Las fechas llegan a la SPA serializadas en UTC con `Z`, así que `new Date(valor)` es correcto para las marcas de tiempo; las fechas sin hora (`AAAA-MM-DD`) se parten a mano en las vistas, porque `new Date('2026-03-16')` caería en el día anterior.
 
 ### 2. Entorno de Desarrollo Local
 ```bash

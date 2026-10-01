@@ -41,6 +41,10 @@ class RolSeeder extends Seeder
                 'pagos.confirmar',
             ],
         ],
+        'Comedor' => [
+            'descripcion' => 'Cuenta del equipo de la entrada del comedor. Solo valida el consumo del día.',
+            'permisos' => ['consumo.validar', 'consumo.ver'],
+        ],
         'Kiosco' => [
             'descripcion' => 'Cuenta del equipo del kiosco. Solo genera fichas; no abre ningún módulo administrativo.',
             'permisos' => ['kiosco.operar'],

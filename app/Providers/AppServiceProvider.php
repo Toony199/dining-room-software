@@ -36,6 +36,10 @@ class AppServiceProvider extends ServiceProvider
     private function limitarElKiosco(): void
     {
         RateLimiter::for('kiosco', fn (Request $request) => Limit::perMinute(30)->by($request->ip()));
+
+        // El comedor es más rápido que el kiosco: en hora pico pasa una persona cada pocos
+        // segundos, y una pantalla que empieza a rechazar por frecuencia detiene la fila.
+        RateLimiter::for('checador', fn (Request $request) => Limit::perMinute(120)->by($request->ip()));
     }
 
     /**

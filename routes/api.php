@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\ConsumoController;
 use App\Http\Controllers\DepartamentosController;
 use App\Http\Controllers\DisenosGafeteController;
 use App\Http\Controllers\FichasController;
@@ -64,6 +65,14 @@ Route::middleware('auth:sanctum')->group(function () {
             ->middleware('can:kiosco.operar')->name('kiosco.identificar');
         Route::post('/kiosco/fichas', [KioscoController::class, 'generarFicha'])
             ->middleware('can:kiosco.operar')->name('kiosco.fichas');
+    });
+
+    // Validación del consumo en el comedor (§16). Mismo planteamiento que el kiosco: quien
+    // escanea es un colaborador, pero el equipo de la entrada entra con la cuenta del rol Comedor,
+    // que solo tiene estos permisos. El límite por frecuencia deja pasar una fila en hora pico.
+    Route::middleware('throttle:checador')->group(function () {
+        Route::post('/consumo/validar', [ConsumoController::class, 'validar'])->middleware('can:consumo.validar');
+        Route::get('/consumo', [ConsumoController::class, 'delDia'])->middleware('can:consumo.ver');
     });
 
     // Gafetes (§4). Sin DELETE ni edición: un gafete solo se reemplaza y el historial se

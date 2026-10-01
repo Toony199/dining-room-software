@@ -88,6 +88,11 @@ class PermisoSeeder extends Seeder
             'pagos.confirmar' => 'Confirmar el pago físico de una ficha.',
             'pagos.cancelar' => 'Cancelar un pago confirmado.',
         ],
+        // Están en el catálogo de docs/analisis-diseno.md §4; faltaban por sembrar.
+        'consumo' => [
+            'consumo.validar' => 'Validar en el comedor si un gafete tiene derecho a comer hoy.',
+            'consumo.ver' => 'Consultar cuántas comidas se han servido y quién pasó.',
+        ],
         'reportes' => [
             'reportes.ver' => 'Consultar reportes.',
             'reportes.generar' => 'Generar reportes de porciones y consumo.',

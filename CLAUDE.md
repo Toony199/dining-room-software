@@ -52,6 +52,7 @@ php artisan db:seed
 - `cache`, `session`, and `queue` all use the **database** driver, so their tables must exist before the app boots correctly.
 - `SANCTUM_STATEFUL_DOMAINS` must list the exact `host:port` the SPA is served from (`localhost:8000` for `php artisan serve`). Sanctum's default list does not include it; without a match every `/api/*` request is stateless and login does not persist.
 - `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_NUMERO_EMPLEADO` (read through `config/comedor.php`) define the bootstrap admin account created by the seeder.
+- `APP_TIMEZONE` must be the cafeteria's own timezone (`America/Mexico_City`, which `config/app.php` also uses as its default) and **not** UTC. Almost every date in this domain is a business date — the day of service, today's derecho de consumo, the request-and-pay window, the cashier's cut — and all of them must roll at local midnight. Running in UTC on a UTC-6 machine moved the day boundary to 18:00 local, so after that hour the checador looked for the *next* day's rights and turned away people who had paid. `tests/Unit/ZonaHorariaTest.php` guards it. Dates reach the SPA serialized as UTC with `Z`, so `new Date(value)` is right for timestamps; date-only strings (`AAAA-MM-DD`) are split by hand in the views, because `new Date('2026-03-16')` would land on the previous day.
 
 ## Architecture
 
